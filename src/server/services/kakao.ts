@@ -38,6 +38,20 @@ export function getRedirectUri(): string {
   return `${getBaseUrl()}/api/auth/kakao/callback`;
 }
 
+export interface KakaoScopeInfo {
+  id: string;
+  display_name?: string;
+  type?: string;
+  using?: boolean;
+  agreed?: boolean;
+  revocable?: boolean;
+}
+
+export function hasTalkMessageInTokenScope(scope?: string): boolean {
+  if (!scope) return false;
+  return scope.split(/[\s,]+/).includes('talk_message');
+}
+
 export function buildAuthorizeUrl(state: string): string {
   const params = new URLSearchParams({
     client_id: getClientId(),
@@ -46,6 +60,18 @@ export function buildAuthorizeUrl(state: string): string {
     scope: 'talk_message',
     // Re-auth after unsubscribe must re-issue refresh_token (Kakao omits it otherwise).
     prompt: 'consent',
+    state,
+  });
+  return `${KAUTH_URL}/oauth/authorize?${params}`;
+}
+
+/** 동의항목 추가 동의 — 이미 로그인한 사용자에게 talk_message만 재요청 */
+export function buildAdditionalConsentUrl(state: string): string {
+  const params = new URLSearchParams({
+    client_id: getClientId(),
+    redirect_uri: getRedirectUri(),
+    response_type: 'code',
+    scope: 'talk_message',
     state,
   });
   return `${KAUTH_URL}/oauth/authorize?${params}`;
@@ -107,6 +133,28 @@ export async function unlinkWithRefreshToken(
     const text = await res.text();
     throw new Error(`Kakao unlink error ${res.status}: ${text}`);
   }
+}
+
+export async function getUserScopes(
+  accessToken: string,
+): Promise<KakaoScopeInfo[]> {
+  const res = await fetch(`${KAPI_URL}/v2/user/scopes`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Kakao scopes error ${res.status}: ${text}`);
+  }
+
+  const data = (await res.json()) as { scopes?: KakaoScopeInfo[] };
+  return data.scopes ?? [];
+}
+
+export async function isTalkMessageAgreed(accessToken: string): Promise<boolean> {
+  const scopes = await getUserScopes(accessToken);
+  const talk = scopes.find((scope) => scope.id === 'talk_message');
+  return talk?.agreed === true;
 }
 
 export async function getKakaoUserId(accessToken: string): Promise<string> {

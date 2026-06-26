@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { buildAuthorizeUrl } from './kakao.js';
+import {
+  buildAdditionalConsentUrl,
+  buildAuthorizeUrl,
+  hasTalkMessageInTokenScope,
+} from './kakao.js';
 
 describe('buildAuthorizeUrl', () => {
   beforeEach(() => {
@@ -21,5 +25,23 @@ describe('buildAuthorizeUrl', () => {
     expect(parsed.searchParams.get('prompt')).toBe('consent');
     expect(parsed.searchParams.get('scope')).toBe('talk_message');
     expect(parsed.searchParams.get('state')).toBe('state-123');
+  });
+
+  it('builds additional consent URL without prompt=consent', () => {
+    const url = buildAdditionalConsentUrl('state-consent');
+    const parsed = new URL(url);
+
+    expect(parsed.searchParams.get('scope')).toBe('talk_message');
+    expect(parsed.searchParams.get('state')).toBe('state-consent');
+    expect(parsed.searchParams.get('prompt')).toBeNull();
+  });
+});
+
+describe('hasTalkMessageInTokenScope', () => {
+  it('detects talk_message in scope string', () => {
+    expect(hasTalkMessageInTokenScope('talk_message')).toBe(true);
+    expect(hasTalkMessageInTokenScope('profile talk_message')).toBe(true);
+    expect(hasTalkMessageInTokenScope('profile')).toBe(false);
+    expect(hasTalkMessageInTokenScope(undefined)).toBe(false);
   });
 });

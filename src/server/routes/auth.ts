@@ -6,12 +6,17 @@ import {
   getUserById,
   saveOAuthState,
   upsertUser,
+  type UserRow,
 } from '../db/index.js';
 import {
+  buildAdditionalConsentUrl,
   buildAuthorizeUrl,
   exchangeCode,
   getKakaoUserId,
   hasKakaoConfig,
+  isTalkMessageAgreed,
+  refreshAccessToken,
+  type KakaoTokenResponse,
 } from '../services/kakao.js';
 import { unsubscribeUser } from '../services/unsubscribe-user.js';
 import {
@@ -81,12 +86,62 @@ function isOAuthStateValid(
   return Boolean(savedState && state === savedState);
 }
 
-authRoutes.get('/auth/me', (c) => {
+function startOAuthRedirect(
+  c: Context,
+  buildUrl: (state: string) => string,
+): Response {
+  const state = createOAuthState();
+  saveOAuthState(state);
+  setCookie(c, OAUTH_STATE_COOKIE, state, {
+    ...cookieOptions(),
+    maxAge: 600,
+  });
+  return c.redirect(buildUrl(state));
+}
+
+async function checkUserTalkMessageAgreed(user: UserRow): Promise<boolean> {
+  try {
+    const refreshToken = decryptToken(user.refresh_token_enc);
+    const tokenRes = await refreshAccessToken(refreshToken);
+    return isTalkMessageAgreed(tokenRes.access_token);
+  } catch (err) {
+    console.warn(`[auth] talk_message scope check failed for user ${user.id}:`, err);
+    return false;
+  }
+}
+
+async function finalizeKakaoSubscribe(
+  c: Context,
+  tokens: KakaoTokenResponse,
+): Promise<Response> {
+  if (!(await isTalkMessageAgreed(tokens.access_token))) {
+    return redirectHome(c, { auth_error: 'scope_required' });
+  }
+
+  if (!tokens.refresh_token) {
+    throw new Error('Kakao did not return refresh_token');
+  }
+
+  const kakaoUserId = await getKakaoUserId(tokens.access_token);
+  const refreshEnc = encryptToken(tokens.refresh_token);
+  const user = upsertUser(kakaoUserId, refreshEnc);
+  const stats = recordSubscriberFingerprint(kakaoUserId);
+  if (stats.isNew) {
+    console.log(`[stats] unique_subscribers=${stats.uniqueSubscribers}`);
+  }
+  const sessionToken = createSessionToken(user.id, getSessionSecret());
+  setSessionCookie(c, sessionToken);
+
+  return redirectHome(c, { subscribed: '1' });
+}
+
+authRoutes.get('/auth/me', async (c) => {
   const pushEnabled = hasPushConfig();
 
   if (!hasKakaoConfig()) {
     return c.json({
       subscribed: false,
+      talkMessageAgreed: false,
       kakaoEnabled: false,
       pushEnabled,
       pushSubscribed: false,
@@ -100,6 +155,7 @@ authRoutes.get('/auth/me', (c) => {
   if (!session) {
     return c.json({
       subscribed: false,
+      talkMessageAgreed: false,
       kakaoEnabled: true,
       pushEnabled,
       pushSubscribed: false,
@@ -108,8 +164,13 @@ authRoutes.get('/auth/me', (c) => {
 
   const user = getUserById(session.userId);
   const subscribed = Boolean(user);
+  const talkMessageAgreed = user
+    ? await checkUserTalkMessageAgreed(user)
+    : false;
+
   return c.json({
     subscribed,
+    talkMessageAgreed,
     kakaoEnabled: true,
     pushEnabled,
     pushSubscribed: user ? userHasPushSubscription(user.id) : false,
@@ -121,14 +182,23 @@ authRoutes.get('/auth/kakao', (c) => {
     return c.json({ error: 'Kakao OAuth not configured' }, 503);
   }
 
-  const state = createOAuthState();
-  saveOAuthState(state);
-  setCookie(c, OAUTH_STATE_COOKIE, state, {
-    ...cookieOptions(),
-    maxAge: 600,
-  });
+  return startOAuthRedirect(c, buildAuthorizeUrl);
+});
 
-  return c.redirect(buildAuthorizeUrl(state));
+authRoutes.get('/auth/kakao/consent', (c) => {
+  if (!hasKakaoConfig()) {
+    return c.json({ error: 'Kakao OAuth not configured' }, 503);
+  }
+
+  const session = parseSessionToken(
+    getCookie(c, SESSION_COOKIE),
+    getSessionSecret(),
+  );
+  if (!session || !getUserById(session.userId)) {
+    return redirectHome(c, { auth_error: 'login_required' });
+  }
+
+  return startOAuthRedirect(c, buildAdditionalConsentUrl);
 });
 
 authRoutes.get('/auth/kakao/callback', async (c) => {
@@ -159,20 +229,7 @@ authRoutes.get('/auth/kakao/callback', async (c) => {
 
   try {
     const tokens = await exchangeCode(code);
-    if (!tokens.refresh_token) {
-      throw new Error('Kakao did not return refresh_token');
-    }
-    const kakaoUserId = await getKakaoUserId(tokens.access_token);
-    const refreshEnc = encryptToken(tokens.refresh_token);
-    const user = upsertUser(kakaoUserId, refreshEnc);
-    const stats = recordSubscriberFingerprint(kakaoUserId);
-    if (stats.isNew) {
-      console.log(`[stats] unique_subscribers=${stats.uniqueSubscribers}`);
-    }
-    const sessionToken = createSessionToken(user.id, getSessionSecret());
-    setSessionCookie(c, sessionToken);
-
-    return redirectHome(c, { subscribed: '1' });
+    return finalizeKakaoSubscribe(c, tokens);
   } catch (err) {
     console.error('[auth] Kakao callback error:', err);
     return redirectHome(c, { auth_error: 'login_failed' });

@@ -18,6 +18,7 @@ const subscribeEl = document.getElementById('subscribe')!;
 
 interface AuthMeResponse {
   subscribed: boolean;
+  talkMessageAgreed: boolean;
   kakaoEnabled: boolean;
   pushEnabled: boolean;
   pushSubscribed: boolean;
@@ -29,6 +30,9 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
     '로그인 연결이 끊겼습니다. 브라우저에서 다시 시도해 주세요. (인앱 브라우저는 Safari·Chrome 사용 권장)',
   login_failed: '카카오 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.',
   not_configured: '카카오 알림이 아직 설정되지 않았습니다.',
+  scope_required:
+    '카카오톡 메시지 전송에 동의하지 않아 구독을 완료할 수 없습니다. 동의 화면에서 해당 항목을 체크해 주세요.',
+  login_required: '먼저 카카오로 알림 받기를 시도한 뒤, 동의를 이어서 진행해 주세요.',
 };
 
 function showAuthBanner(
@@ -175,6 +179,29 @@ function renderSubscribe(auth: AuthMeResponse): void {
 
   subscribeEl.hidden = false;
 
+  const needsTalkMessageConsent =
+    auth.subscribed && !auth.talkMessageAgreed;
+
+  if (needsTalkMessageConsent) {
+    subscribeEl.innerHTML = `
+      <div class="subscribe-card subscribe-incomplete">
+        <p class="env-hint env-hint-warn">
+          <strong>카카오톡 메시지 전송</strong> 동의가 필요합니다. 동의하지 않으면 나와의 채팅 알림을 보낼 수 없습니다.
+        </p>
+        <button type="button" class="btn btn-kakao" id="consent-btn">카카오톡 메시지 전송 동의하기</button>
+        <p class="subscribe-hint">카카오 동의 화면에서 「카카오톡 메시지 전송」을 꼭 선택해 주세요.</p>
+        <button type="button" class="btn btn-ghost btn-sm" id="unsubscribe-btn">구독 해지</button>
+      </div>
+    `;
+    document.getElementById('consent-btn')?.addEventListener('click', () => {
+      window.location.assign('/api/auth/kakao/consent');
+    });
+    document.getElementById('unsubscribe-btn')?.addEventListener('click', () => {
+      void unsubscribe();
+    });
+    return;
+  }
+
   if (auth.subscribed) {
     subscribeEl.innerHTML = `
       <div class="subscribe-card subscribed">
@@ -196,6 +223,9 @@ function renderSubscribe(auth: AuthMeResponse): void {
   subscribeEl.innerHTML = `
     <div class="subscribe-card">
       <p class="subscribe-lead">경기 종료·진출 현황을 카카오톡 나와의 채팅으로 받아보세요.</p>
+      <p class="subscribe-consent-notice">
+        카카오 로그인 시 <strong>카카오톡 메시지 전송</strong>에 꼭 동의해 주세요.
+      </p>
       <button type="button" class="btn btn-kakao" id="subscribe-btn">카카오로 알림 받기</button>
       <p class="subscribe-hint">나와의 채팅에 메모됩니다. 카카오톡 앱 푸시는 오지 않습니다.</p>
     </div>
@@ -211,7 +241,13 @@ async function loadAuth(): Promise<void> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as AuthMeResponse;
     renderSubscribe(data);
-    if (data.subscribed && data.pushEnabled && !data.pushSubscribed && canUsePush()) {
+    if (
+      data.subscribed &&
+      data.talkMessageAgreed &&
+      data.pushEnabled &&
+      !data.pushSubscribed &&
+      canUsePush()
+    ) {
       void preparePush().catch((err) => console.warn('Push prepare failed:', err));
     }
   } catch (err) {
@@ -403,12 +439,14 @@ async function initAuth(): Promise<void> {
   }
 
   if (subscribed === '1') {
-    const isSubscribed = Boolean(document.querySelector('.subscribe-badge'));
+    const isFullySubscribed = Boolean(
+      document.querySelector('.subscribe-badge'),
+    );
     showAuthBanner(
-      isSubscribed
+      isFullySubscribed
         ? '카카오 알림 구독이 완료되었습니다.'
         : '구독은 처리됐지만 이 브라우저에 로그인이 유지되지 않았습니다. Safari·Chrome에서 다시 시도해 주세요.',
-      isSubscribed ? 'ok' : 'error',
+      isFullySubscribed ? 'ok' : 'error',
     );
   }
 }
