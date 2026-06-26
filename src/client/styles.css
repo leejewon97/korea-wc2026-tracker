@@ -201,6 +201,87 @@ body {
   color: var(--warn);
 }
 
+.result-pill.poll-failed {
+  color: var(--warn);
+}
+
+.match-card.poll-failed {
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.admin-hint {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+}
+
+.admin-hint a {
+  color: var(--warn);
+}
+
+.admin-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field span {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.field input,
+.field select {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.score-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.btn-admin {
+  padding: 12px 16px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.form-message {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.form-message.ok {
+  color: var(--ok);
+}
+
+.form-message.error {
+  color: var(--bad);
+}
+
+.footer a {
+  color: var(--muted);
+}
+
 .footer {
   margin-top: 28px;
   color: var(--muted);

@@ -55,6 +55,7 @@ export function buildStatusResponse(): StatusResponse {
       status,
       requirement: requirementFor(match.id),
       finishedAt: state?.finished_at ?? null,
+      pollFailed: (state?.poll_failed ?? 0) === 1,
     };
   });
 

@@ -13,6 +13,9 @@ export interface MatchRow {
   status: MatchStatus;
   finished_at: string | null;
   polling_started_at: string | null;
+  poll_attempts: number;
+  poll_failed: number;
+  last_poll_at: string | null;
 }
 
 let db: DatabaseSync | null = null;
@@ -42,7 +45,10 @@ function initSchema(database: DatabaseSync): void {
       condition_met INTEGER,
       status TEXT NOT NULL DEFAULT 'NS',
       finished_at TEXT,
-      polling_started_at TEXT
+      polling_started_at TEXT,
+      poll_attempts INTEGER NOT NULL DEFAULT 0,
+      poll_failed INTEGER NOT NULL DEFAULT 0,
+      last_poll_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS app_meta (
@@ -50,6 +56,23 @@ function initSchema(database: DatabaseSync): void {
       value TEXT NOT NULL
     );
   `);
+
+  migrateSchema(database);
+}
+
+function migrateSchema(database: DatabaseSync): void {
+  const columns = [
+    'poll_attempts INTEGER NOT NULL DEFAULT 0',
+    'poll_failed INTEGER NOT NULL DEFAULT 0',
+    'last_poll_at TEXT',
+  ];
+  for (const col of columns) {
+    try {
+      database.exec(`ALTER TABLE match_states ADD COLUMN ${col}`);
+    } catch {
+      // column already exists
+    }
+  }
 }
 
 export function getAllMatchStates(): MatchRow[] {
@@ -64,16 +87,35 @@ export function getMatchState(matchId: number): MatchRow | undefined {
     .get(matchId) as MatchRow | undefined;
 }
 
+export function setAppMeta(key: string, value: string): void {
+  getDb()
+    .prepare(
+      `INSERT INTO app_meta (key, value) VALUES (@key, @value)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    )
+    .run({ key, value });
+}
+
+export function getAppMeta(key: string): string | undefined {
+  const row = getDb()
+    .prepare('SELECT value FROM app_meta WHERE key = ?')
+    .get(key) as { value: string } | undefined;
+  return row?.value;
+}
+
 export function upsertMatchState(row: {
   matchId: number;
   apiFixtureId?: number | null;
-  kickoffKst: string;
+  kickoffKst?: string;
   homeScore?: number | null;
   awayScore?: number | null;
   conditionMet?: boolean | null;
   status?: MatchStatus;
   finishedAt?: string | null;
   pollingStartedAt?: string | null;
+  pollAttempts?: number;
+  pollFailed?: boolean;
+  lastPollAt?: string | null;
 }): void {
   const existing = getMatchState(row.matchId);
   const conditionMet =
@@ -85,31 +127,43 @@ export function upsertMatchState(row: {
           ? 1
           : 0;
 
+  const pollFailed =
+    row.pollFailed === undefined
+      ? (existing?.poll_failed ?? 0)
+      : row.pollFailed
+        ? 1
+        : 0;
+
   getDb()
     .prepare(
       `INSERT INTO match_states (
         match_id, api_fixture_id, kickoff_kst,
         home_score, away_score, condition_met,
-        status, finished_at, polling_started_at
+        status, finished_at, polling_started_at,
+        poll_attempts, poll_failed, last_poll_at
       ) VALUES (
         @match_id, @api_fixture_id, @kickoff_kst,
         @home_score, @away_score, @condition_met,
-        @status, @finished_at, @polling_started_at
+        @status, @finished_at, @polling_started_at,
+        @poll_attempts, @poll_failed, @last_poll_at
       )
       ON CONFLICT(match_id) DO UPDATE SET
         api_fixture_id = COALESCE(excluded.api_fixture_id, match_states.api_fixture_id),
-        kickoff_kst = excluded.kickoff_kst,
+        kickoff_kst = COALESCE(excluded.kickoff_kst, match_states.kickoff_kst),
         home_score = COALESCE(excluded.home_score, match_states.home_score),
         away_score = COALESCE(excluded.away_score, match_states.away_score),
         condition_met = excluded.condition_met,
         status = excluded.status,
         finished_at = COALESCE(excluded.finished_at, match_states.finished_at),
-        polling_started_at = COALESCE(excluded.polling_started_at, match_states.polling_started_at)`,
+        polling_started_at = COALESCE(excluded.polling_started_at, match_states.polling_started_at),
+        poll_attempts = COALESCE(excluded.poll_attempts, match_states.poll_attempts),
+        poll_failed = excluded.poll_failed,
+        last_poll_at = COALESCE(excluded.last_poll_at, match_states.last_poll_at)`,
     )
     .run({
       match_id: row.matchId,
       api_fixture_id: row.apiFixtureId ?? existing?.api_fixture_id ?? null,
-      kickoff_kst: row.kickoffKst,
+      kickoff_kst: row.kickoffKst ?? existing?.kickoff_kst ?? '',
       home_score: row.homeScore ?? existing?.home_score ?? null,
       away_score: row.awayScore ?? existing?.away_score ?? null,
       condition_met: conditionMet,
@@ -117,6 +171,9 @@ export function upsertMatchState(row: {
       finished_at: row.finishedAt ?? existing?.finished_at ?? null,
       polling_started_at:
         row.pollingStartedAt ?? existing?.polling_started_at ?? null,
+      poll_attempts: row.pollAttempts ?? existing?.poll_attempts ?? 0,
+      poll_failed: pollFailed,
+      last_poll_at: row.lastPollAt ?? existing?.last_poll_at ?? null,
     });
 }
 

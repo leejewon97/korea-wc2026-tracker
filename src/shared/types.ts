@@ -22,6 +22,9 @@ export interface MatchState {
   status: MatchStatus;
   finishedAt: string | null;
   pollingStartedAt: string | null;
+  pollAttempts: number;
+  pollFailed: boolean;
+  lastPollAt: string | null;
 }
 
 export interface ConditionRequirement {
@@ -54,6 +57,28 @@ export interface StatusResponse {
       status: MatchStatus;
       requirement: string;
       finishedAt: string | null;
+      pollFailed: boolean;
     }
   >;
+}
+
+export interface PollingConfig {
+  startAfterMinutes: number;
+  intervalMinutes: number;
+  maxAttempts: number;
+}
+
+export interface MatchesFileConfig {
+  requiredMetCount: number;
+  polling: PollingConfig;
+  matches: MatchConfig[];
+}
+
+export interface FixtureData {
+  fixtureId: number;
+  homeScore: number | null;
+  awayScore: number | null;
+  statusShort: string;
+  homeTeamName: string;
+  awayTeamName: string;
 }

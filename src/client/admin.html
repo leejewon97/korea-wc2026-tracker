@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>스코어 관리</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <p class="eyebrow">관리자</p>
+        <h1>수동 스코어 입력</h1>
+        <p class="subtitle">API 조회 실패 시 스코어를 직접 입력합니다. 저장할 때마다 비밀번호가 필요합니다.</p>
+      </header>
+
+      <form class="admin-form" id="admin-form">
+        <label class="field">
+          <span>경기</span>
+          <select id="match-id" required></select>
+        </label>
+        <div class="score-row">
+          <label class="field">
+            <span>홈 스코어</span>
+            <input type="number" id="home-score" min="0" required />
+          </label>
+          <label class="field">
+            <span>어웨이 스코어</span>
+            <input type="number" id="away-score" min="0" required />
+          </label>
+        </div>
+        <label class="field">
+          <span>관리자 비밀번호 (ADMIN_SECRET)</span>
+          <input type="password" id="secret" required autocomplete="off" />
+        </label>
+        <button type="submit" class="btn-admin">저장</button>
+        <p class="form-message" id="form-message" aria-live="polite"></p>
+      </form>
+
+      <footer class="footer">
+        <a href="/">대시보드로 돌아가기</a>
+      </footer>
+    </div>
+    <script type="module" src="/admin.ts"></script>
+  </body>
+</html>

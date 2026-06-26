@@ -6,7 +6,10 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { getAllMatchStates, getDb } from './db/index.js';
 import { seedMatches } from './db/seed.js';
+import { adminRoutes } from './routes/admin.js';
 import { statusRoutes } from './routes/status.js';
+import { startScheduler } from './services/match-poller.js';
+import { resolveFixtures } from './services/resolve-fixtures.js';
 
 const app = new Hono();
 
@@ -17,7 +20,10 @@ app.use(
   }),
 );
 
-app.route('/api', statusRoutes);
+const api = new Hono();
+api.route('/', statusRoutes);
+api.route('/', adminRoutes);
+app.route('/api', api);
 
 app.get('/health', (c) => c.json({ ok: true }));
 
@@ -26,15 +32,25 @@ if (existsSync(publicDir)) {
   app.use('/*', serveStatic({ root: publicDir }));
   app.get('/', serveStatic({ path: 'index.html', root: publicDir }));
   app.get('/go', serveStatic({ path: 'go.html', root: publicDir }));
+  app.get('/admin', serveStatic({ path: 'admin.html', root: publicDir }));
 }
 
 const port = Number(process.env.PORT ?? 3000);
 
-getDb();
-if (getAllMatchStates().length === 0) {
-  seedMatches();
+async function bootstrap(): Promise<void> {
+  getDb();
+  if (getAllMatchStates().length === 0) {
+    seedMatches();
+  }
+
+  await resolveFixtures();
+  startScheduler();
+
+  console.log(`Server listening on http://localhost:${port}`);
+  serve({ fetch: app.fetch, port });
 }
 
-console.log(`Server listening on http://localhost:${port}`);
-
-serve({ fetch: app.fetch, port });
+bootstrap().catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
+});

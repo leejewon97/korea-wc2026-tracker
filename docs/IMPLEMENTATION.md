@@ -82,14 +82,15 @@ src/server/
 - [x] `GET /api/status`
 - [x] 웹 대시보드 (1분 자동 갱신)
 
-### Phase 2 — API-Football 폴링
+### Phase 2 — API-Football 폴링 (완료)
 
-- [ ] `apiFixtureId`를 `matches.json`에 매핑
-- [ ] `football-api.ts`: `GET fixtures?id=` (1요청 = 1일 할당 1회)
-- [ ] `match-poller.ts`: 킥오프 **+110분**부터 **1분 간격**, 최대 **30회**
-- [ ] `FT` / `AET` / `PEN` + 골 확정 시 즉시 중단
-- [ ] 종료 시 `condition_met` 갱신 → `notifier` 훅 (Phase 3·4 연동)
-- [ ] 폴백: `POST /api/admin/score` (ADMIN_SECRET)
+- [x] 서버 기동 시 `apiFixtureId` 자동 조회 → DB 저장 + 홈/어웨이 검증
+- [x] `football-api.ts`: `GET fixtures?id=` / `fixtures?date=`
+- [x] `match-poller.ts`: 킥오프 **+110분**부터 **1분 간격**, 최대 **30회**
+- [x] `FT` / `AET` / `PEN` + 골 확정 시 즉시 중단
+- [x] 30회 초과 시 `poll_failed` → 대시보드 **「조회 실패」**
+- [x] 종료 시 `notifier.onMatchFinished()` 스텁 (Phase 3·4)
+- [x] `POST /api/admin/score` + `/admin` 관리 페이지
 
 ### Phase 3 — 카카오
 
@@ -132,7 +133,8 @@ src/server/
       "conditionMet": null,
       "status": "NS",
       "requirement": "세네갈 1골차 이하 승 또는 이라크 4골차 이하 승",
-      "finishedAt": null
+      "finishedAt": null,
+      "pollFailed": false
     }
   ]
 }
@@ -144,6 +146,58 @@ src/server/
 ### `GET /health`
 
 헬스체크 `{ "ok": true }`
+
+### `POST /api/admin/score` (Phase 2)
+
+수동 스코어 입력. body:
+
+```json
+{
+  "matchId": 1,
+  "homeScore": 1,
+  "awayScore": 0,
+  "secret": "ADMIN_SECRET 값"
+}
+```
+
+- `secret` 불일치 → 401
+- 성공 시 `status: MANUAL`, `poll_failed` 초기화
+
+### `/admin` 관리 페이지
+
+브라우저에서 스코어 입력. **저장할 때마다** `ADMIN_SECRET` 입력 필요.
+
+---
+
+## 4b. Fixture ID 자동 조회·검증 (Phase 2)
+
+서버 기동 시 (`resolve-fixtures.ts`):
+
+1. `API_FOOTBALL_KEY` 없으면 스킵
+2. DB/config에 `apiFixtureId` 없으면 `kickoffKst` 날짜로 `fixtures?league=1&season=2026&date=` 조회
+3. `homeTeam`/`awayTeam`과 API 팀명 대조 (별칭: `Congo DR` ↔ `DR Congo` 등)
+4. 일치 → DB에 `api_fixture_id` 저장
+5. 불일치 → 로그 + `app_meta.fixture_mismatch_{id}` 기록, 해당 경기 폴링 제외
+
+**배포 후 체크리스트**
+
+- [ ] 서버 로그에 6경기 `verified` 또는 `resolved` 메시지 확인
+- [ ] `fixture_mismatch` / `fixture_error` 없는지 확인
+- [ ] 불일치 시 `config/matches.json`의 `homeTeam`/`awayTeam` 수정 또는 `apiFixtureId` 수동 입력 후 재기동
+
+---
+
+## 4c. Railway Free 배포 (Phase 2 문서화)
+
+| 항목 | 권장 |
+|------|------|
+| 플랜 | Railway Free ($1/월 크레딧) |
+| RAM | 256MB |
+| Volume | `DATABASE_PATH` 경로에 SQLite 볼륨 마운트 |
+| 운영 기간 | 6/26 저녁 ~ 6/28 경기 종료 후 서비스 중지 |
+| env | `API_FOOTBALL_KEY`, `ADMIN_SECRET`, `DATABASE_PATH`, `PORT` |
+
+Start command: `npm run build && npm start`
 
 ---
 
@@ -179,6 +233,9 @@ MVP에서는 FIFA 조 3위 중 상위 8팀 tie-break 시뮬레이션은 **제외
 | status | TEXT | NS, LIVE, FT, AET, PEN, MANUAL |
 | finished_at | TEXT | 종료 시각 |
 | polling_started_at | TEXT | 첫 API 조회 시각 |
+| poll_attempts | INTEGER | 폴링 회차 |
+| poll_failed | INTEGER | 30회 초과 시 1 |
+| last_poll_at | TEXT | 마지막 API 조회 시각 |
 
 Phase 3+에서 `users`, `push_subscriptions`, `notification_log` 테이블 추가.
 
@@ -220,7 +277,8 @@ npm run build && npm start   # 프로덕션 빌드 후 단일 포트
 - 라이브 중 폴링 **없음**
 - **킥오프 + 110분**부터 1분 간격, 최대 30회 (+140분까지)
 - 무료 플랜 100회/일: 6경기·2일 운영 가능 (경기당 최악 30회 × 3경기/일 = 90회)
-- 종료 상태 `FT` / `AET` / `PEN` + goals 확정 시 즉시 중단·알림
+- 종료 상태 `FT` / `AET` / `PEN` + goals 확정 시 즉시 중단
+- 30회 초과 미종료 → `poll_failed=1`, 대시보드 **「조회 실패」** (별도 알림 없음)
 
 ---
 
@@ -249,4 +307,4 @@ npm run build && npm start   # 프로덕션 빌드 후 단일 포트
 ## 11. 참고
 
 - 상세 요구사항·비채택 방안: [DESIGN.md](./DESIGN.md)
-- `apiFixtureId`는 API-Football에서 2026 WC (`league=1&season=2026`)로 조회 후 `matches.json`에 수동 입력
+- `apiFixtureId`는 서버 기동 시 API-Football에서 자동 조회·검증 (§4b). 수동 입력은 `matches.json` 또는 DB fallback

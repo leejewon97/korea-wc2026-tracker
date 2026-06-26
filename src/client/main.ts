@@ -80,7 +80,11 @@ function renderMatches(data: StatusResponse): void {
       let resultClass = 'waiting';
       let resultText = '대기 중';
 
-      if (finished && match.conditionMet === true) {
+      if (match.pollFailed && !finished) {
+        cardClass = 'poll-failed';
+        resultClass = 'poll-failed';
+        resultText = '조회 실패';
+      } else if (finished && match.conditionMet === true) {
         cardClass = 'met';
         resultClass = 'met';
         resultText = '✓ 필요 결과';
@@ -89,6 +93,11 @@ function renderMatches(data: StatusResponse): void {
         resultClass = 'failed';
         resultText = '✗ 조건 불충족';
       }
+
+      const pollHint =
+        match.pollFailed && !finished
+          ? '<p class="admin-hint"><a href="/admin">스코어를 직접 입력하세요</a></p>'
+          : '';
 
       return `
         <article class="match-card ${cardClass}">
@@ -101,6 +110,7 @@ function renderMatches(data: StatusResponse): void {
           </div>
           <p class="requirement">필요: ${match.requirement}</p>
           <span class="result-pill ${resultClass}">${resultText}</span>
+          ${pollHint}
         </article>
       `;
     })
