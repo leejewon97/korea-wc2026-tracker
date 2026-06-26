@@ -265,6 +265,7 @@ npm run verify:fixtures  # 6경기 fixture ID·팀명 검증 (DB)
 npm run dev              # API :3000, Vite :5173 (프록시 /api)
 npm test
 npm run build && npm start   # 프로덕션 빌드 후 단일 포트
+npm run deploy:railway       # Railway CLI 배포 (로그인 후)
 ```
 
 서버는 기동 시 `.env`를 자동 로드한다 (`src/server/load-env.ts`). Railway에서는 대시보드 Variables가 우선한다.

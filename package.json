@@ -19,7 +19,8 @@
     "db:seed": "tsx src/server/db/seed.ts",
     "setup:env": "tsx scripts/setup-env.ts",
     "verify:fixtures": "tsx scripts/verify-fixtures.ts",
-    "verify:kickoff": "tsx scripts/verify-kickoff.ts"
+    "verify:kickoff": "tsx scripts/verify-kickoff.ts",
+    "deploy:railway": "bash scripts/railway-deploy.sh"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.4",
