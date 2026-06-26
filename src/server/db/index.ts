@@ -109,6 +109,11 @@ function initSchema(database: DatabaseSync): void {
       created_at TEXT NOT NULL,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS subscriber_fingerprints (
+      id_hash TEXT PRIMARY KEY,
+      first_seen_at TEXT NOT NULL
+    );
   `);
 
   migrateSchema(database);
@@ -430,6 +435,31 @@ export function deletePushSubscriptionsByUserId(userId: number): number {
     .prepare('DELETE FROM push_subscriptions WHERE user_id = ?')
     .run(userId);
   return Number(result.changes);
+}
+
+export function insertSubscriberFingerprint(idHash: string): boolean {
+  const now = new Date().toISOString();
+  const result = getDb()
+    .prepare(
+      `INSERT OR IGNORE INTO subscriber_fingerprints (id_hash, first_seen_at)
+       VALUES (?, ?)`,
+    )
+    .run(idHash, now);
+  return result.changes > 0;
+}
+
+export function getUniqueSubscriberCount(): number {
+  const row = getDb()
+    .prepare('SELECT COUNT(*) AS n FROM subscriber_fingerprints')
+    .get() as { n: number };
+  return row.n;
+}
+
+export function getActiveSubscriberCount(): number {
+  const row = getDb()
+    .prepare('SELECT COUNT(*) AS n FROM users')
+    .get() as { n: number };
+  return row.n;
 }
 
 export function closeDb(): void {

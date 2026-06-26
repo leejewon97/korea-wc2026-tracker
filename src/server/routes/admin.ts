@@ -3,6 +3,7 @@ import { getCookie } from 'hono/cookie';
 import { evaluateCondition } from '../../shared/conditions.js';
 import type { MatchStatus } from '../../shared/types.js';
 import { getMatchState, getUserById, resetMatchState, upsertMatchState } from '../db/index.js';
+import { getSubscriberStats } from '../services/subscriber-fingerprint.js';
 import { onMatchFinished } from '../services/notifier.js';
 import { parseSessionToken, SESSION_COOKIE } from '../services/session.js';
 import { sendTestNotificationToUser } from '../services/test-notification.js';
@@ -21,6 +22,18 @@ function verifyAdminSecret(secret: string | undefined): string | null {
   if (secret !== adminSecret) return 'Unauthorized';
   return null;
 }
+
+adminRoutes.get('/admin/stats', (c) => {
+  const authError = verifyAdminSecret(c.req.query('secret'));
+  if (authError === 'Unauthorized') {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  if (authError) {
+    return c.json({ error: authError }, 503);
+  }
+
+  return c.json(getSubscriberStats());
+});
 
 adminRoutes.post('/admin/score', async (c) => {
   const body = await c.req.json<{

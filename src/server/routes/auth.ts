@@ -21,6 +21,7 @@ import {
   parseSessionToken,
   SESSION_COOKIE,
 } from '../services/session.js';
+import { recordSubscriberFingerprint } from '../services/subscriber-fingerprint.js';
 import { encryptToken, decryptToken } from '../services/token-crypto.js';
 import { hasPushConfig } from '../services/push.js';
 import { userHasPushSubscription } from './push.js';
@@ -164,6 +165,10 @@ authRoutes.get('/auth/kakao/callback', async (c) => {
     const kakaoUserId = await getKakaoUserId(tokens.access_token);
     const refreshEnc = encryptToken(tokens.refresh_token);
     const user = upsertUser(kakaoUserId, refreshEnc);
+    const stats = recordSubscriberFingerprint(kakaoUserId);
+    if (stats.isNew) {
+      console.log(`[stats] unique_subscribers=${stats.uniqueSubscribers}`);
+    }
     const sessionToken = createSessionToken(user.id, getSessionSecret());
     setSessionCookie(c, sessionToken);
 
