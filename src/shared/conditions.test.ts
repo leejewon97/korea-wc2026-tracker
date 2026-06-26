@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   computeOnTrack,
   countMetConditions,
+  detectMilestone,
   evaluateCondition,
 } from './conditions.js';
 
@@ -89,5 +90,21 @@ describe('computeOnTrack', () => {
 
   it('false when not enough', () => {
     expect(computeOnTrack(2, 6, 6, 3)).toBe(false);
+  });
+});
+
+describe('detectMilestone', () => {
+  it('advance when required met count reached before all finished', () => {
+    expect(detectMilestone(3, 4, 6, 3)).toBe('advance_confirmed');
+  });
+
+  it('eliminated when max possible falls below required', () => {
+    expect(detectMilestone(1, 5, 6, 3)).toBe('eliminated_confirmed');
+    expect(detectMilestone(2, 6, 6, 3)).toBe('eliminated_confirmed');
+  });
+
+  it('null while still possible', () => {
+    expect(detectMilestone(2, 4, 6, 3)).toBeNull();
+    expect(detectMilestone(0, 0, 6, 3)).toBeNull();
   });
 });

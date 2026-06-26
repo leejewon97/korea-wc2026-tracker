@@ -3,6 +3,27 @@ import type { StatusResponse } from '../../shared/types.js';
 import { computeNotificationHash } from './notification-hash.js';
 import { buildMemoTemplate, buildPayloadSummary, buildPushTitle, buildGoUrl } from './notification-message.js';
 
+function pendingMatch(id: number) {
+  return {
+    id,
+    label: `경기 ${id}`,
+    group: 'X',
+    homeTeam: 'A',
+    awayTeam: 'B',
+    homeTeamKo: 'A',
+    awayTeamKo: 'B',
+    kickoffKst: '2026-06-28T09:00:00+09:00',
+    apiFixtureId: id,
+    homeScore: null,
+    awayScore: null,
+    conditionMet: null,
+    status: 'NS' as const,
+    requirement: 'test',
+    finishedAt: null,
+    pollFailed: false,
+  };
+}
+
 function sampleStatus(overrides?: Partial<StatusResponse>): StatusResponse {
   const base: StatusResponse = {
     updatedAt: '2026-06-26T12:00:00.000Z',
@@ -47,6 +68,10 @@ function sampleStatus(overrides?: Partial<StatusResponse>): StatusResponse {
         finishedAt: null,
         pollFailed: false,
       },
+      pendingMatch(3),
+      pendingMatch(4),
+      pendingMatch(5),
+      pendingMatch(6),
     ],
   };
   return { ...base, ...overrides };
@@ -75,6 +100,23 @@ describe('notification-message', () => {
     const title = buildPushTitle(status, 1);
     expect(title).toContain('세네갈 1-0 이라크');
     expect(title).toContain('1/3');
+  });
+
+  it('builds advance milestone titles', () => {
+    const status = sampleStatus({ metCount: 3, finishedCount: 3 });
+    expect(buildPushTitle(status, 1)).toBe('32강 진출 확정!');
+    expect(buildMemoTemplate(status, 1).content.title).toContain('32강 진출 확정');
+  });
+
+  it('builds eliminated milestone titles', () => {
+    const status = sampleStatus({ metCount: 1, finishedCount: 5 });
+    expect(buildPushTitle(status)).toBe('탈락 확정');
+    expect(buildMemoTemplate(status).content.title).toContain('탈락 확정');
+  });
+
+  it('includes milestone in go url', () => {
+    const status = sampleStatus({ metCount: 3, finishedCount: 3 });
+    expect(buildGoUrl(status)).toContain('milestone=advance_confirmed');
   });
 
   it('builds go url with status params', () => {

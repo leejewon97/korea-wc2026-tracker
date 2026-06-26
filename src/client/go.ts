@@ -7,10 +7,13 @@ const met = params.get('met');
 const finished = params.get('finished');
 const required = params.get('required') ?? '3';
 const onTrack = params.get('onTrack');
+const milestone = params.get('milestone');
 
 if (met !== null && finished !== null) {
   let line = `현황: ${met}/${required} 충족 (종료 ${finished}/6)`;
-  if (onTrack === '1') line += ' — 32강 진출 조건 충족';
+  if (milestone === 'advance_confirmed') line += ' — 32강 진출 확정';
+  else if (milestone === 'eliminated_confirmed') line += ' — 탈락 확정';
+  else if (onTrack === '1') line += ' — 32강 진출 조건 충족';
   else if (onTrack === '0') line += ' — 진출 조건 미충족';
   statusEl.textContent = line;
 } else {

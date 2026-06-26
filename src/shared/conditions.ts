@@ -64,3 +64,20 @@ export function computeOnTrack(
   if (finishedCount < total) return null;
   return metCount >= required;
 }
+
+export type MilestoneKind = 'advance_confirmed' | 'eliminated_confirmed';
+
+/** 앱 기준 이정표: 3개 충족 확정 또는 남은 경기로 3개 불가 확정. */
+export function detectMilestone(
+  metCount: number,
+  finishedCount: number,
+  totalMatches: number,
+  required: number,
+): MilestoneKind | null {
+  const remaining = totalMatches - finishedCount;
+  const maxPossible = metCount + remaining;
+
+  if (metCount >= required) return 'advance_confirmed';
+  if (maxPossible < required) return 'eliminated_confirmed';
+  return null;
+}

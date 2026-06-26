@@ -113,6 +113,7 @@ korea-wc2026-tracker/
 - [x] `/go` 브릿지 — 쿼리 파라미터 현황 + 카카오톡·웹 링크
 - [x] 프로덕션 `BASE_URL`, HTTPS, Railway 배포
 - [x] Android Chrome E2E (카카오 구독 + 푸시 허용 + 「푸시 알림 켜짐」)
+- [x] 이정표 알림 — 32강 진출 확정·탈락 확정 제목·본문 강조 (`detectMilestone`)
 
 ---
 
@@ -452,6 +453,13 @@ npm run deploy:railway       # Railway CLI 배포 (로그인 후)
 
 ```
 세네갈 1-0 이라크 · 2/3 충족
+```
+
+이정표 도달 시:
+
+```
+32강 진출 확정!
+탈락 확정
 ```
 
 탭 → `/go` → `kakaotalk://launch`

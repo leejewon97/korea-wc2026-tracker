@@ -1,4 +1,5 @@
 import type { StatusResponse } from '../shared/types';
+import { detectMilestone } from '../shared/conditions';
 import {
   canUsePush,
   getPushEnvKind,
@@ -277,11 +278,23 @@ function statusLabel(status: StatusResponse['matches'][0]['status']): string {
 function renderSummary(data: StatusResponse): void {
   const { metCount, requiredMetCount, finishedCount, onTrack } = data;
   const progress = Math.min(100, (metCount / requiredMetCount) * 100);
+  const milestone = detectMilestone(
+    metCount,
+    finishedCount,
+    data.matches.length,
+    requiredMetCount,
+  );
 
   let badgeClass = 'pending';
   let badgeText = '경기 진행 중';
 
-  if (onTrack === true) {
+  if (milestone === 'advance_confirmed') {
+    badgeClass = 'ok';
+    badgeText = '32강 진출 확정';
+  } else if (milestone === 'eliminated_confirmed') {
+    badgeClass = 'bad';
+    badgeText = '탈락 확정';
+  } else if (onTrack === true) {
     badgeClass = 'ok';
     badgeText = '32강 진출 조건 충족';
   } else if (onTrack === false) {

@@ -1,4 +1,5 @@
 import type { StatusResponse } from '../../shared/types.js';
+import { detectMilestone } from '../../shared/conditions.js';
 import { getBaseUrl } from './notification-hash.js';
 
 export interface KakaoFeedTemplate {
@@ -45,9 +46,19 @@ export function buildMemoTemplate(
   const trigger = status.matches.find((m) => m.id === triggerMatchId);
   const finishedTrigger =
     trigger && isFinished(trigger.status) ? trigger : undefined;
+  const milestone = detectMilestone(
+    status.metCount,
+    status.finishedCount,
+    status.matches.length,
+    status.requiredMetCount,
+  );
 
   let title: string;
-  if (finishedTrigger) {
+  if (milestone === 'advance_confirmed') {
+    title = `32강 진출 확정! (${status.metCount}/${status.requiredMetCount} 충족)`;
+  } else if (milestone === 'eliminated_confirmed') {
+    title = `탈락 확정 (${status.metCount}/${status.requiredMetCount}, 종료 ${status.finishedCount}/6)`;
+  } else if (finishedTrigger) {
     const mark = finishedTrigger.conditionMet ? '충족' : '미충족';
     title = `${finishedTrigger.group}조 종료 — ${finishedTrigger.homeTeamKo} ${finishedTrigger.homeScore}-${finishedTrigger.awayScore} ${finishedTrigger.awayTeamKo} (${mark})`;
   } else {
@@ -55,8 +66,16 @@ export function buildMemoTemplate(
   }
 
   const summaryLines = status.matches.map(matchLine);
+  const milestoneLine =
+    milestone === 'advance_confirmed'
+      ? '🎉 추적 6경기 중 필요 결과 3개 이상 달성 (앱 기준 확정)'
+      : milestone === 'eliminated_confirmed'
+        ? '❌ 남은 경기와 관계없이 3개 충족 불가 (앱 기준 확정)'
+        : null;
+
   const description = [
-    `📈 32강 진출 현황: ${status.metCount}/${status.requiredMetCount} 충족 (종료 ${status.finishedCount}/6)`,
+    milestoneLine ??
+      `📈 32강 진출 현황: ${status.metCount}/${status.requiredMetCount} 충족 (종료 ${status.finishedCount}/6)`,
     '',
     ...summaryLines,
   ].join('\n');
@@ -96,13 +115,22 @@ export function buildPushTitle(
   status: StatusResponse,
   triggerMatchId?: number,
 ): string {
+  const milestone = detectMilestone(
+    status.metCount,
+    status.finishedCount,
+    status.matches.length,
+    status.requiredMetCount,
+  );
+  if (milestone === 'advance_confirmed') {
+    return '32강 진출 확정!';
+  }
+  if (milestone === 'eliminated_confirmed') {
+    return '탈락 확정';
+  }
+
   const trigger = status.matches.find((m) => m.id === triggerMatchId);
   const finishedTrigger =
     trigger && isFinished(trigger.status) ? trigger : undefined;
-
-  if (status.onTrack === true && status.finishedCount === status.matches.length) {
-    return '32강 진출 조건 충족!';
-  }
 
   if (finishedTrigger) {
     const score = `${finishedTrigger.homeTeamKo} ${finishedTrigger.homeScore}-${finishedTrigger.awayScore} ${finishedTrigger.awayTeamKo}`;
@@ -118,6 +146,13 @@ export function buildGoUrl(status: StatusResponse): string {
     finished: String(status.finishedCount),
     required: String(status.requiredMetCount),
   });
+  const milestone = detectMilestone(
+    status.metCount,
+    status.finishedCount,
+    status.matches.length,
+    status.requiredMetCount,
+  );
+  if (milestone) params.set('milestone', milestone);
   if (status.onTrack === true) params.set('onTrack', '1');
   if (status.onTrack === false) params.set('onTrack', '0');
   return `/go?${params.toString()}`;
