@@ -26,6 +26,20 @@ for key in KICKOFF_API_KEY ADMIN_SECRET; do
   fi
 done
 
+OPTIONAL_VARS=()
+if [[ -n "${KAKAO_REST_API_KEY:-}" ]]; then
+  OPTIONAL_VARS+=("KAKAO_REST_API_KEY=${KAKAO_REST_API_KEY}")
+fi
+if [[ -n "${KAKAO_CLIENT_SECRET:-}" ]]; then
+  OPTIONAL_VARS+=("KAKAO_CLIENT_SECRET=${KAKAO_CLIENT_SECRET}")
+fi
+if [[ -n "${SESSION_SECRET:-}" ]]; then
+  OPTIONAL_VARS+=("SESSION_SECRET=${SESSION_SECRET}")
+fi
+if [[ -n "${TOKEN_ENCRYPTION_KEY:-}" ]]; then
+  OPTIONAL_VARS+=("TOKEN_ENCRYPTION_KEY=${TOKEN_ENCRYPTION_KEY}")
+fi
+
 echo "==> Railway 프로젝트 연결 (미연결 시 railway init 실행)"
 if ! npx @railway/cli status >/dev/null 2>&1; then
   npx @railway/cli init
@@ -37,7 +51,12 @@ MSYS_NO_PATHCONV=1 npx @railway/cli variables set \
   "ADMIN_SECRET=${ADMIN_SECRET}" \
   "DATABASE_PATH=/data/app.db" \
   "PORT=3000" \
-  "NODE_ENV=production"
+  "NODE_ENV=production" \
+  "${OPTIONAL_VARS[@]}"
+
+if [[ ${#OPTIONAL_VARS[@]} -gt 0 ]]; then
+  echo "    (+ Kakao/session vars from .env)"
+fi
 
 if [[ -n "${BASE_URL:-}" && "${BASE_URL}" != "http://localhost:3000" ]]; then
   MSYS_NO_PATHCONV=1 npx @railway/cli variables set "BASE_URL=${BASE_URL}"

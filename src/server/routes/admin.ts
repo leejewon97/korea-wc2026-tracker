@@ -57,7 +57,7 @@ adminRoutes.post('/admin/score', async (c) => {
     pollAttempts: 0,
   });
 
-  onMatchFinished(matchId);
+  void onMatchFinished(matchId);
 
   return c.json({
     ok: true,

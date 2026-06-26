@@ -18,6 +18,14 @@ export interface MatchRow {
   last_poll_at: string | null;
 }
 
+export interface UserRow {
+  id: number;
+  kakao_user_id: string;
+  refresh_token_enc: string;
+  created_at: string;
+  updated_at: string;
+}
+
 let db: DatabaseSync | null = null;
 
 export function getDbPath(): string {
@@ -54,6 +62,31 @@ function initSchema(database: DatabaseSync): void {
     CREATE TABLE IF NOT EXISTS app_meta (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kakao_user_id TEXT NOT NULL UNIQUE,
+      refresh_token_enc TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS notification_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      channel TEXT NOT NULL,
+      notification_hash TEXT NOT NULL,
+      payload_summary TEXT NOT NULL,
+      sent_at TEXT NOT NULL,
+      success INTEGER NOT NULL,
+      error_message TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS oauth_states (
+      state TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL
     );
   `);
 
@@ -198,6 +231,105 @@ export function resetMatchState(matchId: number): boolean {
     )
     .run(matchId);
   return result.changes > 0;
+}
+
+export function upsertUser(
+  kakaoUserId: string,
+  refreshTokenEnc: string,
+): UserRow {
+  const now = new Date().toISOString();
+  getDb()
+    .prepare(
+      `INSERT INTO users (kakao_user_id, refresh_token_enc, created_at, updated_at)
+       VALUES (@kakao_user_id, @refresh_token_enc, @now, @now)
+       ON CONFLICT(kakao_user_id) DO UPDATE SET
+         refresh_token_enc = excluded.refresh_token_enc,
+         updated_at = excluded.updated_at`,
+    )
+    .run({
+      kakao_user_id: kakaoUserId,
+      refresh_token_enc: refreshTokenEnc,
+      now,
+    });
+
+  const row = getDb()
+    .prepare('SELECT * FROM users WHERE kakao_user_id = ?')
+    .get(kakaoUserId) as unknown as UserRow;
+  return row;
+}
+
+export function getUserById(id: number): UserRow | undefined {
+  return getDb()
+    .prepare('SELECT * FROM users WHERE id = ?')
+    .get(id) as UserRow | undefined;
+}
+
+export function getAllUsers(): UserRow[] {
+  return getDb()
+    .prepare('SELECT * FROM users ORDER BY id')
+    .all() as unknown as UserRow[];
+}
+
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+
+export function saveOAuthState(state: string): void {
+  const now = new Date().toISOString();
+  const cutoff = new Date(Date.now() - OAUTH_STATE_TTL_MS).toISOString();
+  const database = getDb();
+  database.prepare('DELETE FROM oauth_states WHERE created_at < ?').run(cutoff);
+  database
+    .prepare('INSERT INTO oauth_states (state, created_at) VALUES (?, ?)')
+    .run(state, now);
+}
+
+export function consumeOAuthState(state: string): boolean {
+  const result = getDb()
+    .prepare('DELETE FROM oauth_states WHERE state = ?')
+    .run(state);
+  return result.changes > 0;
+}
+
+export function deleteUser(id: number): boolean {
+  const database = getDb();
+  database.exec('BEGIN');
+  try {
+    database.prepare('DELETE FROM notification_log WHERE user_id = ?').run(id);
+    const result = database.prepare('DELETE FROM users WHERE id = ?').run(id);
+    database.exec('COMMIT');
+    return result.changes > 0;
+  } catch (err) {
+    database.exec('ROLLBACK');
+    throw err;
+  }
+}
+
+export function insertNotificationLog(row: {
+  userId: number;
+  channel: string;
+  notificationHash: string;
+  payloadSummary: string;
+  success: boolean;
+  errorMessage?: string | null;
+}): void {
+  getDb()
+    .prepare(
+      `INSERT INTO notification_log (
+        user_id, channel, notification_hash, payload_summary,
+        sent_at, success, error_message
+      ) VALUES (
+        @user_id, @channel, @notification_hash, @payload_summary,
+        @sent_at, @success, @error_message
+      )`,
+    )
+    .run({
+      user_id: row.userId,
+      channel: row.channel,
+      notification_hash: row.notificationHash,
+      payload_summary: row.payloadSummary,
+      sent_at: new Date().toISOString(),
+      success: row.success ? 1 : 0,
+      error_message: row.errorMessage ?? null,
+    });
 }
 
 export function closeDb(): void {

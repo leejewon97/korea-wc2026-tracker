@@ -8,6 +8,7 @@ import { resolve } from 'node:path';
 import { getAllMatchStates, getDb } from './db/index.js';
 import { seedMatches } from './db/seed.js';
 import { adminRoutes } from './routes/admin.js';
+import { authRoutes } from './routes/auth.js';
 import { statusRoutes } from './routes/status.js';
 import { startScheduler } from './services/match-poller.js';
 import { resolveFixtures } from './services/resolve-fixtures.js';
@@ -26,6 +27,7 @@ app.use(
 const api = new Hono();
 api.route('/', statusRoutes);
 api.route('/', adminRoutes);
+api.route('/', authRoutes);
 app.route('/api', api);
 
 app.get('/health', (c) => c.json({ ok: true }));

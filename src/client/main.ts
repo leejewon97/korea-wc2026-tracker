@@ -3,6 +3,98 @@ import type { StatusResponse } from '../shared/types';
 const summaryEl = document.getElementById('summary')!;
 const matchesEl = document.getElementById('matches')!;
 const updatedAtEl = document.getElementById('updated-at')!;
+const subscribeEl = document.getElementById('subscribe')!;
+
+interface AuthMeResponse {
+  subscribed: boolean;
+  kakaoEnabled: boolean;
+}
+
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  access_denied: '카카오 동의가 취소되었습니다.',
+  invalid_state:
+    '로그인 연결이 끊겼습니다. 브라우저에서 다시 시도해 주세요. (인앱 브라우저는 Safari·Chrome 사용 권장)',
+  login_failed: '카카오 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+  not_configured: '카카오 알림이 아직 설정되지 않았습니다.',
+};
+
+function showAuthBanner(
+  message: string,
+  type: 'ok' | 'error' | 'info',
+): void {
+  const banner = document.createElement('div');
+  banner.className = `auth-banner auth-banner-${type}`;
+  banner.setAttribute('role', 'status');
+  banner.textContent = message;
+  subscribeEl.prepend(banner);
+  window.setTimeout(() => banner.remove(), 10_000);
+}
+
+function renderSubscribe(auth: AuthMeResponse): void {
+  if (!auth.kakaoEnabled) {
+    subscribeEl.innerHTML = '';
+    subscribeEl.hidden = true;
+    return;
+  }
+
+  subscribeEl.hidden = false;
+
+  if (auth.subscribed) {
+    subscribeEl.innerHTML = `
+      <div class="subscribe-card subscribed">
+        <div class="subscribe-top">
+          <span class="subscribe-badge">알림 구독 중</span>
+        </div>
+        <p class="subscribe-hint">경기 종료 시 카카오톡 <strong>나와의 채팅</strong>에 현황이 메모됩니다. (카카오톡 푸시 없음)</p>
+        <button type="button" class="btn btn-ghost" id="unsubscribe-btn">구독 해지</button>
+      </div>
+    `;
+    document.getElementById('unsubscribe-btn')?.addEventListener('click', () => {
+      void unsubscribe();
+    });
+    return;
+  }
+
+  subscribeEl.innerHTML = `
+    <div class="subscribe-card">
+      <p class="subscribe-lead">경기 종료·진출 현황을 카카오톡 나와의 채팅으로 받아보세요.</p>
+      <button type="button" class="btn btn-kakao" id="subscribe-btn">카카오로 알림 받기</button>
+      <p class="subscribe-hint">나와의 채팅에 메모됩니다. 카카오톡 앱 푸시는 오지 않습니다.</p>
+    </div>
+  `;
+  document.getElementById('subscribe-btn')?.addEventListener('click', () => {
+    window.location.assign('/api/auth/kakao');
+  });
+}
+
+async function loadAuth(): Promise<void> {
+  try {
+    const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = (await res.json()) as AuthMeResponse;
+    renderSubscribe(data);
+  } catch (err) {
+    subscribeEl.innerHTML =
+      '<div class="subscribe-card">구독 상태를 불러오지 못했습니다.</div>';
+    console.error(err);
+  }
+}
+
+async function unsubscribe(): Promise<void> {
+  const res = await fetch('/api/auth/unsubscribe', {
+    method: 'DELETE',
+    credentials: 'same-origin',
+  });
+  if (!res.ok) {
+    alert('구독 해지에 실패했습니다.');
+    return;
+  }
+  await loadAuth();
+  showAuthBanner(
+    '카카오 알림 구독이 해지되었습니다. 다시 구독하려면 카카오 동의가 필요합니다.',
+    'info',
+  );
+}
 
 function formatKickoff(iso: string): string {
   const date = new Date(iso);
@@ -132,5 +224,37 @@ async function loadStatus(): Promise<void> {
   }
 }
 
+async function initAuth(): Promise<void> {
+  const params = new URLSearchParams(window.location.search);
+  const authError = params.get('auth_error');
+  const subscribed = params.get('subscribed');
+
+  if (authError || subscribed) {
+    window.history.replaceState({}, '', '/');
+  }
+
+  await loadAuth();
+
+  if (authError) {
+    showAuthBanner(
+      AUTH_ERROR_MESSAGES[authError] ??
+        '카카오 로그인에 실패했습니다. 다시 시도해 주세요.',
+      'error',
+    );
+    return;
+  }
+
+  if (subscribed === '1') {
+    const isSubscribed = Boolean(document.querySelector('.subscribe-badge'));
+    showAuthBanner(
+      isSubscribed
+        ? '카카오 알림 구독이 완료되었습니다.'
+        : '구독은 처리됐지만 이 브라우저에 로그인이 유지되지 않았습니다. Safari·Chrome에서 다시 시도해 주세요.',
+      isSubscribed ? 'ok' : 'error',
+    );
+  }
+}
+
+void initAuth();
 loadStatus();
 setInterval(loadStatus, 60_000);

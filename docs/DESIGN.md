@@ -1,7 +1,7 @@
 # 대한민국 2026 월드컵 32강 진출 트래커 — 설계 문서
 
 > 작성 기준: 2026년 6월 26일 대화 합의 사항  
-> 상태: 구현 전 설계 확정
+> 구현 상태: **Phase 1·2·3 완료** (웹 대시보드, KickoffAPI 폴링, 카카오 메모 알림) · **Phase 4 (Web Push) 미착수**
 
 ---
 
@@ -181,12 +181,24 @@ Web Push 불가 구독자     → 메모 + 웹 대시보드만
 ### 5.2 필수 설정
 
 - [Kakao Developers](https://developers.kakao.com/) 앱 생성
-- Redirect URI 등록
+- Redirect URI 등록 (2025.12 이후: **플랫폼 키 → REST API 키 → 카카오 로그인 리다이렉트 URI**)
+  - 프로덕션: `https://korea-wc2026-tracker-production.up.railway.app/api/auth/kakao/callback`
+  - 로컬: `http://localhost:3000/api/auth/kakao/callback`
 - 동의 항목: **카카오톡 메시지 전송 (`talk_message`)** — 로그인 시 `scope=talk_message` 포함
-- 메시지 템플릿 구성 (피드 카드 등)
-- 서버에서 refresh token으로 access token 갱신
+- OAuth `prompt=consent` — 재구독 시 refresh token 재발급·동의 화면
+- 서버에서 refresh token AES-256-GCM 암호화 저장, access token 갱신 후 memo 발송
 
-### 5.3 제약
+### 5.3 구독·해지 플로우 (구현됨)
+
+| 단계 | 동작 |
+|------|------|
+| 구독 | `GET /api/auth/kakao` → 카카오 동의 → 콜백에서 `users` upsert + 세션 쿠키 |
+| 해지 | `DELETE /api/auth/unsubscribe` → 카카오 `unlink` → DB·세션 삭제 |
+| 재구독 | `unlink` 후이므로 카카오 동의 화면 재표시 (`prompt=consent`) |
+
+OAuth `state`는 **서버 DB (`oauth_states`)** + 쿠키 이중 저장 — 모바일·인앱 브라우저에서 쿠키 유실 대비.
+
+### 5.4 제약
 
 - 사용자마다 **개별 로그인·동의** 필요
 - **나와의 채팅**으로만 발송 (단톡·채널 아님)
@@ -226,7 +238,9 @@ Web Push 불가 구독자     → 메모 + 웹 대시보드만
 
 ## 7. 사용자 환경별 가이드 (웹 UI 제공)
 
-구독 전 **환경 감지** 후 해당 가이드를 표시한다.
+> **현재 (Phase 3):** 카카오 구독·해지만 구현. Web Push·환경 감지 UI는 Phase 4.
+
+구독 전 **환경 감지** 후 해당 가이드를 표시한다. (Phase 4)
 
 ### A. Android + Chrome (권장)
 
@@ -356,20 +370,27 @@ KickoffAPI 플랜 한도 내 운영 (검증 기준 일 **~100,000 req**).
 
 ---
 
-## 9. 데이터 모델 (초안)
+## 9. 데이터 모델
 
-### 9.1 구독자 (Subscriber)
+> 구현: `src/server/db/index.ts`
+
+### 9.1 구독자 (`users`, Phase 3)
 
 | 필드 | 설명 |
 |------|------|
-| id | 내부 ID |
-| kakao_user_id | 카카오 회원번호 |
-| refresh_token | 암호화 저장 권장 |
-| push_subscription | Web Push JSON (nullable) |
-| created_at | 구독 시각 |
+| id | 내부 ID (INTEGER PK) |
+| kakao_user_id | 카카오 회원번호 (UNIQUE) |
+| refresh_token_enc | AES-256-GCM 암호화 refresh token |
+| created_at, updated_at | 구독·토큰 갱신 시각 |
+
+### 9.1b Web Push (`push_subscriptions`, Phase 4 — 미구현)
+
+| 필드 | 설명 |
+|------|------|
+| user_id 또는 anonymous endpoint | 구독 endpoint JSON |
 | push_enabled | boolean |
 
-### 9.2 경기/상태 (MatchState)
+### 9.2 경기/상태 (`match_states`)
 
 | 필드 | 설명 |
 |------|------|
@@ -378,46 +399,67 @@ KickoffAPI 플랜 한도 내 운영 (검증 기준 일 **~100,000 req**).
 | kickoff_kst | §1.3 킥오프 시각 |
 | home_score, away_score | nullable (경기 전) |
 | condition_met | boolean |
-| status | API `fixture.status.short` (nullable) |
+| status | NS, LIVE, FT, AET, PEN, MANUAL |
 | finished_at | nullable (FT 확인 시각) |
-| polling_started_at | nullable (첫 폴링 시각, 디버깅용) |
+| polling_started_at | nullable (첫 폴링 시각) |
+| poll_attempts, poll_failed, last_poll_at | 폴링 상태 (Phase 2) |
 
-### 9.3 발송 이력 (NotificationLog)
+### 9.3 발송 이력 (`notification_log`, Phase 3)
 
 | 필드 | 설명 |
 |------|------|
-| subscriber_id | |
-| channel | `kakao_memo` \| `web_push` |
-| payload_summary | |
+| user_id | FK → `users.id` ON DELETE CASCADE |
+| channel | `kakao_memo` (Phase 4: `web_push`) |
+| notification_hash | 상태 스냅샷 해시 (중복 방지) |
+| payload_summary | 발송 요약 |
 | sent_at | |
 | success | boolean |
+| error_message | 실패 시 |
+
+### 9.4 OAuth state (`oauth_states`, Phase 3)
+
+| 필드 | 설명 |
+|------|------|
+| state | OAuth CSRF 토큰 (PK) |
+| created_at | 10분 TTL 정리 |
+
+### 9.5 앱 메타 (`app_meta`)
+
+| 필드 | 설명 |
+|------|------|
+| key | 예: `last_notification_hash` |
+| value | |
 
 ---
 
 ## 10. 보안·운영
 
-- Kakao **Admin Key·Client Secret**은 서버 환경변수만
-- refresh token 암호화 저장
-- HTTPS 전제
-- 구독 해지(토큰 삭제·push endpoint 제거) UI 제공
-- 개인정보: 카카오 ID·토큰·푸시 endpoint만 최소 수집
+- Kakao **REST API 키·Client Secret**은 서버 환경변수만
+- refresh token **AES-256-GCM** 암호화 (`TOKEN_ENCRYPTION_KEY`)
+- 세션 쿠키 HMAC 서명 (`SESSION_SECRET`), production에서 `Secure` + `SameSite=Lax`
+- HTTPS 전제 (Railway 프로덕션)
+- 구독 해지: 카카오 `unlink` + DB·세션 삭제, 대시보드 해지 버튼·안내 배너
+- 개인정보: 카카오 ID·암호화 토큰만 최소 수집 (Web Push endpoint는 Phase 4)
 
 ---
 
 ## 11. MVP 범위
 
-### 포함
+### 포함 (완료)
 
-- [ ] 웹 대시보드 (6조건 현황, 충족 수)
-- [ ] 카카오 로그인 + 구독
-- [ ] 나에게 보내기 API 발송
-- [ ] Web Push 구독·발송
-- [ ] `/go` 브릿지 페이지
-- [ ] 환경 감지 + 사용자 가이드 UI
+- [x] 웹 대시보드 (6조건 현황, 충족 수)
+- [x] 카카오 로그인 + 구독·해지
+- [x] 나에게 보내기 API 발송
+- [x] `/go` 브릿지 페이지 (`kakaotalk://launch`)
 - [x] KickoffAPI 연동 (§8.3: 킥오프+110분부터 1분 간격·최대 30회, FT 시 중단)
-- [ ] 경기 종료 즉시 스코어 포함 알림 (카카오 메모 + Web Push)
-- [ ] 수동 스코어 입력 폴백
-- [ ] 6조건 판정 로직
+- [x] 경기 종료 시 스코어 포함 카카오 메모 알림
+- [x] 수동 스코어 입력 폴백 (`/admin`, `POST /api/admin/score`, `POST /api/admin/reset`)
+- [x] 6조건 판정 로직
+
+### 포함 (미완 — Phase 4)
+
+- [ ] Web Push 구독·발송
+- [ ] 환경 감지 + 사용자 가이드 UI (§7)
 
 ### 제외 (이후)
 

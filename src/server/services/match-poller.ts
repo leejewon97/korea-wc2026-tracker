@@ -87,7 +87,7 @@ export async function pollMatchOnce(matchId: number): Promise<void> {
         pollFailed: false,
         lastPollAt: now,
       });
-      onMatchFinished(matchId);
+      void onMatchFinished(matchId);
       console.log(
         `[match-poller] match ${matchId} finished: ${fixture.homeScore}-${fixture.awayScore}`,
       );
