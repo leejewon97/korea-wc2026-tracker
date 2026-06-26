@@ -91,3 +91,34 @@ export function buildPayloadSummary(
   const template = buildMemoTemplate(status, triggerMatchId);
   return template.content.title;
 }
+
+export function buildPushTitle(
+  status: StatusResponse,
+  triggerMatchId?: number,
+): string {
+  const trigger = status.matches.find((m) => m.id === triggerMatchId);
+  const finishedTrigger =
+    trigger && isFinished(trigger.status) ? trigger : undefined;
+
+  if (status.onTrack === true && status.finishedCount === status.matches.length) {
+    return '32강 진출 조건 충족!';
+  }
+
+  if (finishedTrigger) {
+    const score = `${finishedTrigger.homeTeamKo} ${finishedTrigger.homeScore}-${finishedTrigger.awayScore} ${finishedTrigger.awayTeamKo}`;
+    return `${score} · ${status.metCount}/${status.requiredMetCount} 충족`;
+  }
+
+  return `32강 ${status.metCount}/${status.requiredMetCount} 충족`;
+}
+
+export function buildGoUrl(status: StatusResponse): string {
+  const params = new URLSearchParams({
+    met: String(status.metCount),
+    finished: String(status.finishedCount),
+    required: String(status.requiredMetCount),
+  });
+  if (status.onTrack === true) params.set('onTrack', '1');
+  if (status.onTrack === false) params.set('onTrack', '0');
+  return `/go?${params.toString()}`;
+}

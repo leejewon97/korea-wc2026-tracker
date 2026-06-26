@@ -9,6 +9,7 @@ import { getAllMatchStates, getDb } from './db/index.js';
 import { seedMatches } from './db/seed.js';
 import { adminRoutes } from './routes/admin.js';
 import { authRoutes } from './routes/auth.js';
+import { pushRoutes } from './routes/push.js';
 import { statusRoutes } from './routes/status.js';
 import { startScheduler } from './services/match-poller.js';
 import { resolveFixtures } from './services/resolve-fixtures.js';
@@ -28,6 +29,7 @@ const api = new Hono();
 api.route('/', statusRoutes);
 api.route('/', adminRoutes);
 api.route('/', authRoutes);
+api.route('/', pushRoutes);
 app.route('/api', api);
 
 app.get('/health', (c) => c.json({ ok: true }));

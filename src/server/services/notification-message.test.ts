@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { StatusResponse } from '../../shared/types.js';
 import { computeNotificationHash } from './notification-hash.js';
-import { buildMemoTemplate, buildPayloadSummary } from './notification-message.js';
+import { buildMemoTemplate, buildPayloadSummary, buildPushTitle, buildGoUrl } from './notification-message.js';
 
 function sampleStatus(overrides?: Partial<StatusResponse>): StatusResponse {
   const base: StatusResponse = {
@@ -68,6 +68,21 @@ describe('notification-message', () => {
     const status = sampleStatus();
     const summary = buildPayloadSummary(status, 1);
     expect(summary).toContain('I조 종료');
+  });
+
+  it('builds short push title with score and met count', () => {
+    const status = sampleStatus();
+    const title = buildPushTitle(status, 1);
+    expect(title).toContain('세네갈 1-0 이라크');
+    expect(title).toContain('1/3');
+  });
+
+  it('builds go url with status params', () => {
+    const status = sampleStatus();
+    const url = buildGoUrl(status);
+    expect(url).toContain('met=1');
+    expect(url).toContain('finished=1');
+    expect(url).toMatch(/^\/go\?/);
   });
 });
 

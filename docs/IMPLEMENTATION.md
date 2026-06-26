@@ -1,7 +1,7 @@
 # 구현 가이드 (IMPLEMENTATION)
 
 > 상위 설계: [DESIGN.md](./DESIGN.md)  
-> Phase 1·2·3 구현 완료 기준: 2026-06-26  
+> Phase 1·2·3·4 구현 완료 기준: 2026-06-26  
 > 프로덕션: https://korea-wc2026-tracker-production.up.railway.app
 
 ---
@@ -50,38 +50,22 @@ korea-wc2026-tracker/
 │   │   ├── routes/
 │   │   │   ├── status.ts         # GET /api/status
 │   │   │   ├── admin.ts          # 수동 스코어·원복
-│   │   │   └── auth.ts           # 카카오 OAuth·구독
+│   │   │   ├── auth.ts           # 카카오 OAuth·구독
+│   │   │   └── push.ts           # Web Push 구독
 │   │   └── services/
-│   │       ├── status.ts
-│   │       ├── kickoff-api.ts
-│   │       ├── match-poller.ts
-│   │       ├── fixture-resolver.ts
-│   │       ├── resolve-fixtures.ts
-│   │       ├── notifier.ts         # 경기 종료 시 카카오 메모
-│   │       ├── kakao.ts            # OAuth·토큰·unlink·memo
-│   │       ├── session.ts          # 세션·OAuth state 쿠키
-│   │       ├── token-crypto.ts     # refresh token AES-256-GCM
-│   │       ├── notification-hash.ts
-│   │       └── notification-message.ts
+│   │       ├── ...
+│   │       ├── push.ts             # web-push 발송
+│   │       └── notifier.ts         # 카카오톡 나와의 채팅 + Web Push
 │   └── client/
-│       ├── index.html              # 대시보드
-│       ├── go.html                 # kakaotalk:// 브릿지
-│       ├── admin.html              # 수동 스코어
-│       ├── main.ts
-│       ├── admin.ts
+│       ├── public/sw.js            # Service Worker
+│       ├── index.html, go.html, admin.html
+│       ├── main.ts, go.ts, env-detect.ts, admin.ts
 │       └── styles.css
 ├── .env.example
 ├── railway.toml
 ├── package.json
 ├── vite.config.ts
 └── vitest.config.ts
-```
-
-### Phase 4에서 추가 예정
-
-```
-src/server/routes/push.ts         # Web Push 구독 API
-src/client/sw.ts                  # Service Worker (예정)
 ```
 
 ---
@@ -103,7 +87,7 @@ src/client/sw.ts                  # Service Worker (예정)
 - [x] `match-poller.ts`: 킥오프 **+110분**부터 **1분 간격**, 최대 **30회**
 - [x] `FT` / `AET` / `PEN` + 골 확정 시 즉시 중단
 - [x] 30회 초과 시 `poll_failed` → 대시보드 **「조회 실패」**
-- [x] 종료 시 `notifier.onMatchFinished()` → 카카오 메모 발송 (Phase 3)
+- [x] 종료 시 `notifier.onMatchFinished()` → 카카오톡 나와의 채팅 발송 (Phase 3)
 - [x] `POST /api/admin/score` + `/admin` 관리 페이지
 
 ### Phase 3 — 카카오 (완료)
@@ -118,13 +102,17 @@ src/client/sw.ts                  # Service Worker (예정)
 - [x] `notification_log` 발송 이력
 - [x] Railway 프로덕션 배포·E2E 검증 (구독 → 메모 수신 → 해지 → 재구독)
 
-### Phase 4 — Web Push
+### Phase 4 — Web Push (완료)
 
-- [ ] VAPID 키 생성 (`web-push`)
-- [ ] 구독 등록 API + Service Worker
-- [ ] Push 제목에 스코어, 클릭 시 `/go` → `kakaotalk://launch`
-- [ ] 환경 감지 + 사용자 가이드 UI (DESIGN.md §7)
-- [x] 프로덕션 `BASE_URL`, HTTPS, 상시 프로세스 배포 (Railway)
+- [x] VAPID 키 (`web-push`) — `setup-env`·Railway Variables
+- [x] `push_subscriptions` 테이블 + 구독 API (`/api/push/*`)
+- [x] Service Worker (`/sw.js`) + 카카오 구독 후 **선택적** 푸시 등록
+- [x] `notifier`에 `web_push` 채널 (짧은 제목, 클릭 → `/go`)
+- [x] 환경 감지 UI — 인앱·iOS·미지원은 **노란 경고 박스**, Android 차단 시 단계별 해제 안내
+- [x] Android Chrome: `preparePush` 선행 로드, 버튼 탭 직후 권한 요청, 자동 차단 해제 안내
+- [x] `/go` 브릿지 — 쿼리 파라미터 현황 + 카카오톡·웹 링크
+- [x] 프로덕션 `BASE_URL`, HTTPS, Railway 배포
+- [x] Android Chrome E2E (카카오 구독 + 푸시 허용 + 「푸시 알림 켜짐」)
 
 ---
 
@@ -198,7 +186,7 @@ src/client/sw.ts                  # Service Worker (예정)
 |------------|------|
 | `GET /api/auth/kakao` | 카카오 로그인 시작 (`scope=talk_message`, `prompt=consent`) |
 | `GET /api/auth/kakao/callback` | OAuth 콜백 (서버 전용, 성공 시 `/?subscribed=1`) |
-| `GET /api/auth/me` | `{ subscribed, kakaoEnabled }` |
+| `GET /api/auth/me` | `{ subscribed, kakaoEnabled, pushEnabled, pushSubscribed }` |
 | `POST /api/auth/logout` | 세션 쿠키 삭제 (구독 DB는 유지) |
 | `DELETE /api/auth/unsubscribe` | 카카오 `unlink` + DB 사용자 삭제 + 세션 삭제 |
 
@@ -213,6 +201,16 @@ src/client/sw.ts                  # Service Worker (예정)
 - `GET /api/auth/kakao` 시 `oauth_states` 테이블에 state 저장 (TTL 10분)
 - 콜백에서 DB state 소비 또는 `oauth_state` 쿠키와 대조
 - 실패 시 `/?auth_error=...` 로 리다이렉트 (클라이언트 배너 표시)
+
+### Web Push (Phase 4)
+
+| 엔드포인트 | 설명 |
+|------------|------|
+| `GET /api/push/vapid-public-key` | `{ enabled, publicKey? }` |
+| `POST /api/push/subscribe` | 세션 필수, body: PushSubscription JSON |
+| `DELETE /api/push/unsubscribe` | 세션 필수, 사용자 Push endpoint 전체 삭제 |
+
+카카오 구독 후 **선택적** 푸시 등록. `notifier`가 동일 hash로 `kakao_memo` + `web_push` 병렬 발송.
 
 ---
 
@@ -241,7 +239,7 @@ src/client/sw.ts                  # Service Worker (예정)
 | 플랜 | Railway Hobby (Volume 지원) |
 | Volume | `DATABASE_PATH` 경로에 SQLite 볼륨 마운트 (`/data`) |
 | 운영 기간 | 6/26 저녁 ~ 6/28 경기 종료 후 서비스 중지 (선택) |
-| env | `KICKOFF_API_KEY`, `ADMIN_SECRET`, `KAKAO_*`, `SESSION_SECRET`, `TOKEN_ENCRYPTION_KEY`, `BASE_URL`, `DATABASE_PATH`, `PORT`, `NODE_ENV=production` |
+| env | `KICKOFF_API_KEY`, `ADMIN_SECRET`, `KAKAO_*`, `SESSION_SECRET`, `TOKEN_ENCRYPTION_KEY`, `VAPID_*`, `BASE_URL`, `DATABASE_PATH`, `PORT`, `NODE_ENV=production` |
 
 `railway.toml`: `buildCommand = "npm run build"`, `startCommand = "npm start"`
 
@@ -283,7 +281,7 @@ MVP에서는 FIFA 조 3위 중 상위 8팀 tie-break 시뮬레이션은 **제외
 | poll_failed | INTEGER | 30회 초과 시 1 |
 | last_poll_at | TEXT | 마지막 API 조회 시각 |
 
-Phase 3에서 `users`, `notification_log`, `oauth_states` 추가. Phase 4에서 `push_subscriptions` 예정.
+Phase 3·4: `users`, `notification_log`, `oauth_states`, `push_subscriptions`.
 
 ### `users` (Phase 3)
 
@@ -301,7 +299,7 @@ Phase 3에서 `users`, `notification_log`, `oauth_states` 추가. Phase 4에서 
 |------|------|------|
 | id | INTEGER PK | |
 | user_id | INTEGER FK | `users.id` ON DELETE CASCADE |
-| channel | TEXT | `kakao_memo` (Phase 4: `web_push`) |
+| channel | TEXT | `kakao_memo` \| `web_push` |
 | notification_hash | TEXT | 중복 방지용 상태 해시 |
 | payload_summary | TEXT | 발송 요약 |
 | sent_at | TEXT | |
@@ -314,6 +312,17 @@ Phase 3에서 `users`, `notification_log`, `oauth_states` 추가. Phase 4에서 
 |------|------|------|
 | state | TEXT PK | OAuth CSRF 토큰 |
 | created_at | TEXT | 생성 시각 (10분 TTL 정리) |
+
+### `push_subscriptions` (Phase 4)
+
+| 컬럼 | 타입 | 설명 |
+|------|------|------|
+| id | INTEGER PK | |
+| user_id | INTEGER FK | `users.id` ON DELETE CASCADE |
+| endpoint | TEXT UNIQUE | Push endpoint URL |
+| p256dh | TEXT | 구독 공개키 |
+| auth | TEXT | auth secret |
+| created_at | TEXT | |
 
 ### `app_meta` (Phase 2·3)
 
@@ -338,6 +347,9 @@ Phase 3에서 `users`, `notification_log`, `oauth_states` 추가. Phase 4에서 
 | `KAKAO_CLIENT_SECRET` | 3 | 카카오 Client Secret (보안 활성화 시) |
 | `SESSION_SECRET` | 3 | 세션 쿠키 서명 |
 | `TOKEN_ENCRYPTION_KEY` | 3 | refresh token 암호화 (64자 hex) |
+| `VAPID_PUBLIC_KEY` | 4 | Web Push VAPID 공개키 |
+| `VAPID_PRIVATE_KEY` | 4 | Web Push VAPID 비밀키 |
+| `VAPID_SUBJECT` | 4 | `mailto:...` 또는 사이트 URL |
 
 ---
 
@@ -367,7 +379,7 @@ npm run deploy:railway       # Railway CLI 배포 (로그인 후)
 
 | 항목 | 설명 |
 |------|------|
-| `npm run setup:env` | `.env` + 랜덤 `ADMIN_SECRET`·`SESSION_SECRET`·`TOKEN_ENCRYPTION_KEY` |
+| `npm run setup:env` | `.env` + 랜덤 시크릿·VAPID 키 |
 | `npm run verify:kickoff` | KickoffAPI 2026 시즌·6경기·fixture by id 검증 |
 | `npm run verify:fixtures` | DB 연동 fixture resolve·검증 |
 | `railway.toml` | Railway 빌드(`npm run build`)·시작(`npm start`) |
@@ -378,11 +390,12 @@ npm run deploy:railway       # Railway CLI 배포 (로그인 후)
 
 - [x] GitHub repo 연동·배포
 - [x] Volume `/data` → `DATABASE_PATH=/data/app.db`
-- [x] Variables: `KICKOFF_API_KEY`, `ADMIN_SECRET`, `KAKAO_*`, `SESSION_SECRET`, `TOKEN_ENCRYPTION_KEY`, `BASE_URL`, `NODE_ENV=production`
+- [x] Variables: `KICKOFF_API_KEY`, `ADMIN_SECRET`, `KAKAO_*`, `SESSION_SECRET`, `TOKEN_ENCRYPTION_KEY`, `VAPID_*`, `BASE_URL`, `NODE_ENV=production`
 - [x] 도메인: `https://korea-wc2026-tracker-production.up.railway.app`
 - [x] 카카오 Redirect URI 등록 + `talk_message` 동의
 - [x] 기동 로그 6경기 fixture verified
-- [x] 카카오 구독·메모·해지·재구독 E2E
+- [x] 카카오 구독·나와의 채팅·해지·재구독 E2E
+- [x] Android Chrome Web Push 구독 E2E
 
 ### 로컬 개발 시
 
@@ -442,6 +455,21 @@ npm run deploy:railway       # Railway CLI 배포 (로그인 후)
 ```
 
 탭 → `/go` → `kakaotalk://launch`
+
+### 푸시 UI 상태 (`main.ts` + `env-detect.ts`)
+
+푸시 영역은 **카카오 구독 완료 후** 구독 카드 안에만 표시된다. `pushEnabled`(서버 VAPID)가 꺼져 있으면 영역 자체가 숨겨진다.
+
+| 조건 | UI |
+|------|-----|
+| `pushSubscribed: true` | 「푸시 알림 켜짐」배지 + 「푸시 끄기」 |
+| 지원 환경 + 권한 `default`/`granted` | 「푸시 알림 받기」버튼 + 허용 안내 |
+| 지원 환경 + 권한 `denied` | 차단 안내(Android: ⋮·상세설정) + 「푸시 알림 받기」재시도 |
+| 인앱 브라우저 | 노란 박스 — Chrome·Safari에서 직접 열기 |
+| iOS 일반 탭 | 노란 박스 — 홈 화면 추가 안내 |
+| Push API 미지원 | 노란 박스 — 나와의 채팅·웹 대시보드 안내 |
+
+버튼 탭 후 일시 배너: 성공(초록), 거부·차단(빨강), 허용 창 닫기(회색).
 
 ---
 

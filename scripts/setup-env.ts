@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import webpush from 'web-push';
 import { generateEncryptionKeyHex } from '../src/server/services/token-crypto.js';
 
 const envPath = resolve(process.cwd(), '.env');
@@ -15,11 +16,16 @@ const template = readFileSync(examplePath, 'utf-8');
 const adminSecret = randomBytes(16).toString('hex');
 const sessionSecret = randomBytes(32).toString('hex');
 const tokenEncryptionKey = generateEncryptionKeyHex();
+const vapidKeys = webpush.generateVAPIDKeys();
 
 let content = template.replace('change-me-admin-secret', adminSecret);
 content = content.replace('change-me-session-secret', sessionSecret);
 content = content.replace('change-me-token-encryption-key', tokenEncryptionKey);
+content = content.replace('VAPID_PUBLIC_KEY=', `VAPID_PUBLIC_KEY=${vapidKeys.publicKey}`);
+content = content.replace('VAPID_PRIVATE_KEY=', `VAPID_PRIVATE_KEY=${vapidKeys.privateKey}`);
 
 writeFileSync(envPath, content, 'utf-8');
-console.log('Created .env with random ADMIN_SECRET, SESSION_SECRET, TOKEN_ENCRYPTION_KEY.');
+console.log(
+  'Created .env with random ADMIN_SECRET, SESSION_SECRET, TOKEN_ENCRYPTION_KEY, VAPID keys.',
+);
 console.log('Add KICKOFF_API_KEY and KAKAO_* keys to .env, then run: npm run verify:kickoff');

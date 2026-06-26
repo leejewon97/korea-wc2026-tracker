@@ -26,6 +26,15 @@ export interface UserRow {
   updated_at: string;
 }
 
+export interface PushSubscriptionRow {
+  id: number;
+  user_id: number;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  created_at: string;
+}
+
 let db: DatabaseSync | null = null;
 
 export function getDbPath(): string {
@@ -87,6 +96,16 @@ function initSchema(database: DatabaseSync): void {
     CREATE TABLE IF NOT EXISTS oauth_states (
       state TEXT PRIMARY KEY,
       created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      endpoint TEXT NOT NULL UNIQUE,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
   `);
 
@@ -330,6 +349,65 @@ export function insertNotificationLog(row: {
       success: row.success ? 1 : 0,
       error_message: row.errorMessage ?? null,
     });
+}
+
+export function upsertPushSubscription(row: {
+  userId: number;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}): PushSubscriptionRow {
+  const now = new Date().toISOString();
+  getDb()
+    .prepare(
+      `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, created_at)
+       VALUES (@user_id, @endpoint, @p256dh, @auth, @now)
+       ON CONFLICT(endpoint) DO UPDATE SET
+         user_id = excluded.user_id,
+         p256dh = excluded.p256dh,
+         auth = excluded.auth`,
+    )
+    .run({
+      user_id: row.userId,
+      endpoint: row.endpoint,
+      p256dh: row.p256dh,
+      auth: row.auth,
+      now,
+    });
+
+  return getDb()
+    .prepare('SELECT * FROM push_subscriptions WHERE endpoint = ?')
+    .get(row.endpoint) as unknown as PushSubscriptionRow;
+}
+
+export function getPushSubscriptionsByUserId(
+  userId: number,
+): PushSubscriptionRow[] {
+  return getDb()
+    .prepare(
+      'SELECT * FROM push_subscriptions WHERE user_id = ? ORDER BY id',
+    )
+    .all(userId) as unknown as PushSubscriptionRow[];
+}
+
+export function getAllPushSubscriptions(): PushSubscriptionRow[] {
+  return getDb()
+    .prepare('SELECT * FROM push_subscriptions ORDER BY id')
+    .all() as unknown as PushSubscriptionRow[];
+}
+
+export function deletePushSubscription(endpoint: string): boolean {
+  const result = getDb()
+    .prepare('DELETE FROM push_subscriptions WHERE endpoint = ?')
+    .run(endpoint);
+  return result.changes > 0;
+}
+
+export function deletePushSubscriptionsByUserId(userId: number): number {
+  const result = getDb()
+    .prepare('DELETE FROM push_subscriptions WHERE user_id = ?')
+    .run(userId);
+  return Number(result.changes);
 }
 
 export function closeDb(): void {

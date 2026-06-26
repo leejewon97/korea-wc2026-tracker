@@ -24,10 +24,12 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.14.4",
-    "hono": "^4.8.3"
+    "hono": "^4.8.3",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/node": "^22.15.30",
+    "@types/web-push": "^3.6.4",
     "concurrently": "^9.1.2",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",

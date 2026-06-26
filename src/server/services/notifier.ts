@@ -1,4 +1,5 @@
 import {
+  getAllPushSubscriptions,
   getAllUsers,
   getAppMeta,
   insertNotificationLog,
@@ -15,14 +16,17 @@ import {
   LAST_NOTIFICATION_HASH_KEY,
 } from './notification-hash.js';
 import {
+  buildGoUrl,
   buildMemoTemplate,
   buildPayloadSummary,
+  buildPushTitle,
 } from './notification-message.js';
+import { hasPushConfig, sendPushToSubscription } from './push.js';
 import { buildStatusResponse } from './status.js';
 import { decryptToken, encryptToken } from './token-crypto.js';
 
 export async function onMatchFinished(matchId: number): Promise<void> {
-  if (!hasKakaoConfig()) return;
+  if (!hasKakaoConfig() && !hasPushConfig()) return;
 
   const status = buildStatusResponse();
   const hash = computeNotificationHash(status);
@@ -33,15 +37,19 @@ export async function onMatchFinished(matchId: number): Promise<void> {
     return;
   }
 
-  const users = getAllUsers();
-  if (users.length === 0) {
+  const users = hasKakaoConfig() ? getAllUsers() : [];
+  const pushSubs = hasPushConfig() ? getAllPushSubscriptions() : [];
+
+  if (users.length === 0 && pushSubs.length === 0) {
     setAppMeta(LAST_NOTIFICATION_HASH_KEY, hash);
     console.log('[notifier] no subscribers — hash saved');
     return;
   }
 
   const template = buildMemoTemplate(status, matchId);
-  const summary = buildPayloadSummary(status, matchId);
+  const memoSummary = buildPayloadSummary(status, matchId);
+  const pushTitle = buildPushTitle(status, matchId);
+  const pushUrl = buildGoUrl(status);
   let successCount = 0;
 
   for (const user of users) {
@@ -59,7 +67,7 @@ export async function onMatchFinished(matchId: number): Promise<void> {
         userId: user.id,
         channel: 'kakao_memo',
         notificationHash: hash,
-        payloadSummary: summary,
+        payloadSummary: memoSummary,
         success: true,
       });
       successCount++;
@@ -69,7 +77,7 @@ export async function onMatchFinished(matchId: number): Promise<void> {
         userId: user.id,
         channel: 'kakao_memo',
         notificationHash: hash,
-        payloadSummary: summary,
+        payloadSummary: memoSummary,
         success: false,
         errorMessage: message,
       });
@@ -77,12 +85,40 @@ export async function onMatchFinished(matchId: number): Promise<void> {
     }
   }
 
+  for (const sub of pushSubs) {
+    try {
+      await sendPushToSubscription(sub, { title: pushTitle, url: pushUrl });
+      insertNotificationLog({
+        userId: sub.user_id,
+        channel: 'web_push',
+        notificationHash: hash,
+        payloadSummary: pushTitle,
+        success: true,
+      });
+      successCount++;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      insertNotificationLog({
+        userId: sub.user_id,
+        channel: 'web_push',
+        notificationHash: hash,
+        payloadSummary: pushTitle,
+        success: false,
+        errorMessage: message,
+      });
+      console.error(
+        `[notifier] push sub ${sub.id} (user ${sub.user_id}) failed:`,
+        message,
+      );
+    }
+  }
+
   if (successCount > 0) {
     setAppMeta(LAST_NOTIFICATION_HASH_KEY, hash);
     console.log(
-      `[notifier] sent memo to ${successCount}/${users.length} subscribers`,
+      `[notifier] sent ${successCount} notification(s) (users=${users.length}, push=${pushSubs.length})`,
     );
   } else {
-    console.warn('[notifier] all memo sends failed — hash not updated');
+    console.warn('[notifier] all sends failed — hash not updated');
   }
 }

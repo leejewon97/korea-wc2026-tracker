@@ -8,10 +8,15 @@
   </head>
   <body class="go-page">
     <main class="go-card">
-      <h1>카카오톡으로 이동</h1>
-      <p>나와의 채팅에서 상세 현황을 확인하세요.</p>
-      <a id="open-kakao" class="btn" href="kakaotalk://launch">카카오톡 열기</a>
-      <p class="hint">앱이 열리지 않으면 카카오톡을 설치한 뒤 다시 시도하세요.</p>
+      <h1>알림 확인</h1>
+      <p id="go-status" class="go-status">불러오는 중…</p>
+      <p class="go-lead">상세 내용은 카카오톡 <strong>나와의 채팅</strong>에 보내 두었습니다.</p>
+      <div class="go-actions">
+        <a id="open-kakao" class="btn btn-kakao" href="kakaotalk://launch">카카오톡 열기</a>
+        <a id="open-web" class="btn btn-ghost" href="/">웹에서 보기</a>
+      </div>
+      <p class="hint">카카오톡 앱이 열리면 나와의 채팅에서 메모를 확인하세요.</p>
     </main>
+    <script type="module" src="/go.ts"></script>
   </body>
 </html>

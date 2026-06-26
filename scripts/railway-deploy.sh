@@ -39,6 +39,15 @@ fi
 if [[ -n "${TOKEN_ENCRYPTION_KEY:-}" ]]; then
   OPTIONAL_VARS+=("TOKEN_ENCRYPTION_KEY=${TOKEN_ENCRYPTION_KEY}")
 fi
+if [[ -n "${VAPID_PUBLIC_KEY:-}" ]]; then
+  OPTIONAL_VARS+=("VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}")
+fi
+if [[ -n "${VAPID_PRIVATE_KEY:-}" ]]; then
+  OPTIONAL_VARS+=("VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}")
+fi
+if [[ -n "${VAPID_SUBJECT:-}" ]]; then
+  OPTIONAL_VARS+=("VAPID_SUBJECT=${VAPID_SUBJECT}")
+fi
 
 echo "==> Railway 프로젝트 연결 (미연결 시 railway init 실행)"
 if ! npx @railway/cli status >/dev/null 2>&1; then
@@ -55,7 +64,7 @@ MSYS_NO_PATHCONV=1 npx @railway/cli variables set \
   "${OPTIONAL_VARS[@]}"
 
 if [[ ${#OPTIONAL_VARS[@]} -gt 0 ]]; then
-  echo "    (+ Kakao/session vars from .env)"
+  echo "    (+ Kakao/session/VAPID vars from .env)"
 fi
 
 if [[ -n "${BASE_URL:-}" && "${BASE_URL}" != "http://localhost:3000" ]]; then

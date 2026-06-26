@@ -23,6 +23,8 @@ import {
   SESSION_COOKIE,
 } from '../services/session.js';
 import { encryptToken, decryptToken } from '../services/token-crypto.js';
+import { hasPushConfig } from '../services/push.js';
+import { userHasPushSubscription } from './push.js';
 
 export const authRoutes = new Hono();
 
@@ -80,8 +82,15 @@ function isOAuthStateValid(
 }
 
 authRoutes.get('/auth/me', (c) => {
+  const pushEnabled = hasPushConfig();
+
   if (!hasKakaoConfig()) {
-    return c.json({ subscribed: false, kakaoEnabled: false });
+    return c.json({
+      subscribed: false,
+      kakaoEnabled: false,
+      pushEnabled,
+      pushSubscribed: false,
+    });
   }
 
   const session = parseSessionToken(
@@ -89,11 +98,22 @@ authRoutes.get('/auth/me', (c) => {
     getSessionSecret(),
   );
   if (!session) {
-    return c.json({ subscribed: false, kakaoEnabled: true });
+    return c.json({
+      subscribed: false,
+      kakaoEnabled: true,
+      pushEnabled,
+      pushSubscribed: false,
+    });
   }
 
   const user = getUserById(session.userId);
-  return c.json({ subscribed: Boolean(user), kakaoEnabled: true });
+  const subscribed = Boolean(user);
+  return c.json({
+    subscribed,
+    kakaoEnabled: true,
+    pushEnabled,
+    pushSubscribed: user ? userHasPushSubscription(user.id) : false,
+  });
 });
 
 authRoutes.get('/auth/kakao', (c) => {
