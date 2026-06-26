@@ -32,15 +32,15 @@ if ! npx @railway/cli status >/dev/null 2>&1; then
 fi
 
 echo "==> 환경 변수 설정"
-npx @railway/cli variables set \
+MSYS_NO_PATHCONV=1 npx @railway/cli variables set \
   "KICKOFF_API_KEY=${KICKOFF_API_KEY}" \
   "ADMIN_SECRET=${ADMIN_SECRET}" \
   "DATABASE_PATH=/data/app.db" \
   "PORT=3000" \
   "NODE_ENV=production"
 
-if [[ -n "${BASE_URL:-}" ]]; then
-  npx @railway/cli variables set "BASE_URL=${BASE_URL}"
+if [[ -n "${BASE_URL:-}" && "${BASE_URL}" != "http://localhost:3000" ]]; then
+  MSYS_NO_PATHCONV=1 npx @railway/cli variables set "BASE_URL=${BASE_URL}"
 fi
 
 echo ""

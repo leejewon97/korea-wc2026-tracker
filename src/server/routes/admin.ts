@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { evaluateCondition } from '../../shared/conditions.js';
 import type { MatchStatus } from '../../shared/types.js';
-import { getMatchState, upsertMatchState } from '../db/index.js';
+import { getMatchState, resetMatchState, upsertMatchState } from '../db/index.js';
 import { onMatchFinished } from '../services/notifier.js';
 
 export const adminRoutes = new Hono();
@@ -66,4 +66,28 @@ adminRoutes.post('/admin/score', async (c) => {
     awayScore,
     conditionMet,
   });
+});
+
+adminRoutes.post('/admin/reset', async (c) => {
+  const adminSecret = process.env.ADMIN_SECRET;
+  if (!adminSecret) {
+    return c.json({ error: 'ADMIN_SECRET not configured' }, 503);
+  }
+
+  const body = await c.req.json<{ matchId: number; secret: string }>();
+  if (body.secret !== adminSecret) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const matchId = Number(body.matchId);
+  if (!Number.isInteger(matchId) || matchId < 1 || matchId > 6) {
+    return c.json({ error: 'Invalid input' }, 400);
+  }
+
+  if (!getMatchState(matchId)) {
+    return c.json({ error: 'Match not found' }, 404);
+  }
+
+  resetMatchState(matchId);
+  return c.json({ ok: true, matchId });
 });

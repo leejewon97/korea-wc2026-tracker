@@ -181,6 +181,25 @@ export function upsertMatchState(row: {
     });
 }
 
+export function resetMatchState(matchId: number): boolean {
+  const result = getDb()
+    .prepare(
+      `UPDATE match_states SET
+        home_score = NULL,
+        away_score = NULL,
+        condition_met = NULL,
+        status = 'NS',
+        finished_at = NULL,
+        poll_failed = 0,
+        poll_attempts = 0,
+        polling_started_at = NULL,
+        last_poll_at = NULL
+      WHERE match_id = ?`,
+    )
+    .run(matchId);
+  return result.changes > 0;
+}
+
 export function closeDb(): void {
   if (db) {
     db.close();
