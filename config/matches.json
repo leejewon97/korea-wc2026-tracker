@@ -1,0 +1,76 @@
+{
+  "requiredMetCount": 3,
+  "polling": {
+    "startAfterMinutes": 110,
+    "intervalMinutes": 1,
+    "maxAttempts": 30
+  },
+  "matches": [
+    {
+      "id": 1,
+      "label": "세네갈 vs 이라크",
+      "group": "I",
+      "homeTeam": "Senegal",
+      "awayTeam": "Iraq",
+      "homeTeamKo": "세네갈",
+      "awayTeamKo": "이라크",
+      "kickoffKst": "2026-06-27T04:00:00+09:00",
+      "apiFixtureId": null
+    },
+    {
+      "id": 2,
+      "label": "우루과이 vs 스페인",
+      "group": "H",
+      "homeTeam": "Uruguay",
+      "awayTeam": "Spain",
+      "homeTeamKo": "우루과이",
+      "awayTeamKo": "스페인",
+      "kickoffKst": "2026-06-27T09:00:00+09:00",
+      "apiFixtureId": null
+    },
+    {
+      "id": 3,
+      "label": "이집트 vs 이란",
+      "group": "G",
+      "homeTeam": "Egypt",
+      "awayTeam": "Iran",
+      "homeTeamKo": "이집트",
+      "awayTeamKo": "이란",
+      "kickoffKst": "2026-06-27T12:00:00+09:00",
+      "apiFixtureId": null
+    },
+    {
+      "id": 4,
+      "label": "크로아티아 vs 가나",
+      "group": "L",
+      "homeTeam": "Croatia",
+      "awayTeam": "Ghana",
+      "homeTeamKo": "크로아티아",
+      "awayTeamKo": "가나",
+      "kickoffKst": "2026-06-28T06:00:00+09:00",
+      "apiFixtureId": null
+    },
+    {
+      "id": 5,
+      "label": "콩고민주 vs 우즈베키스탄",
+      "group": "K",
+      "homeTeam": "Congo DR",
+      "awayTeam": "Uzbekistan",
+      "homeTeamKo": "콩고민주",
+      "awayTeamKo": "우즈베키스탄",
+      "kickoffKst": "2026-06-28T08:30:00+09:00",
+      "apiFixtureId": null
+    },
+    {
+      "id": 6,
+      "label": "알제리 vs 오스트리아",
+      "group": "J",
+      "homeTeam": "Algeria",
+      "awayTeam": "Austria",
+      "homeTeamKo": "알제리",
+      "awayTeamKo": "오스트리아",
+      "kickoffKst": "2026-06-28T11:00:00+09:00",
+      "apiFixtureId": null
+    }
+  ]
+}

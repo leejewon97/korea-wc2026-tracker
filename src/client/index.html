@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>한국 32강 진출 트래커</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <p class="eyebrow">2026 FIFA 월드컵 · A조 3위</p>
+        <h1>대한민국 32강 진출 트래커</h1>
+        <p class="subtitle">6개 타조 경기 중 3개 이상 필요 결과가 나오면 조 3위 중 상위 8팀 진출 가능</p>
+      </header>
+
+      <section class="summary" id="summary" aria-live="polite">
+        <div class="summary-card loading">불러오는 중…</div>
+      </section>
+
+      <section class="matches" id="matches"></section>
+
+      <footer class="footer">
+        <p>경기 종료 후 스코어가 자동 반영됩니다. <span id="updated-at"></span></p>
+      </footer>
+    </div>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>

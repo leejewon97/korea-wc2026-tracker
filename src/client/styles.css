@@ -1,0 +1,249 @@
+:root {
+  --bg: #0b1220;
+  --surface: #141e33;
+  --surface-2: #1c2944;
+  --text: #eef3ff;
+  --muted: #9aabc9;
+  --accent: #e11d48;
+  --accent-2: #f43f5e;
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --bad: #ef4444;
+  --border: rgba(255, 255, 255, 0.08);
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, rgba(225, 29, 72, 0.18), transparent 40%),
+    linear-gradient(180deg, #0b1220 0%, #070b14 100%);
+  color: var(--text);
+}
+
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.header h1 {
+  margin: 8px 0 12px;
+  font-size: 1.75rem;
+  line-height: 1.25;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--accent-2);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.summary {
+  margin: 28px 0;
+}
+
+.summary-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+
+.summary-card.loading {
+  color: var(--muted);
+}
+
+.summary-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.summary-count {
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.summary-count span {
+  color: var(--muted);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.badge.pending {
+  background: rgba(154, 171, 201, 0.15);
+  color: var(--muted);
+}
+
+.badge.ok {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--ok);
+}
+
+.badge.bad {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--bad);
+}
+
+.progress-bar {
+  height: 8px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 0.3s ease;
+}
+
+.matches {
+  display: grid;
+  gap: 12px;
+}
+
+.match-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.match-card.met {
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.match-card.failed {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.match-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.match-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.match-meta {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.match-score {
+  font-size: 1.25rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.match-score.pending {
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.requirement {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.result-pill {
+  margin-top: 10px;
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.result-pill.met {
+  color: var(--ok);
+}
+
+.result-pill.failed {
+  color: var(--bad);
+}
+
+.result-pill.waiting {
+  color: var(--warn);
+}
+
+.footer {
+  margin-top: 28px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.go-page {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.go-card {
+  max-width: 420px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.btn {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  background: #fee500;
+  color: #191600;
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.hint {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+@media (min-width: 640px) {
+  .header h1 {
+    font-size: 2rem;
+  }
+}
