@@ -114,6 +114,7 @@ korea-wc2026-tracker/
 - [x] 프로덕션 `BASE_URL`, HTTPS, Railway 배포
 - [x] Android Chrome E2E (카카오 구독 + 푸시 허용 + 「푸시 알림 켜짐」)
 - [x] 이정표 알림 — 32강 진출 확정·탈락 확정 제목·본문 강조 (`detectMilestone`)
+- [x] 이정표 도달 시 최종 알림 후 카카오·푸시 **자동 구독 해지** (`unsubscribe-user.ts`)
 
 ---
 
@@ -212,6 +213,8 @@ korea-wc2026-tracker/
 | `DELETE /api/push/unsubscribe` | 세션 필수, 사용자 Push endpoint 전체 삭제 |
 
 카카오 구독 후 **선택적** 푸시 등록. `notifier`가 동일 hash로 `kakao_memo` + `web_push` 병렬 발송.
+
+이정표(진출·탈락 확정) 도달 시 최종 알림을 보낸 뒤 모든 구독자를 `unsubscribeUser()`로 자동 해지한다.
 
 ---
 

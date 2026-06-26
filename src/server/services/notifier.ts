@@ -24,6 +24,8 @@ import {
 import { hasPushConfig, sendPushToSubscription } from './push.js';
 import { buildStatusResponse } from './status.js';
 import { decryptToken, encryptToken } from './token-crypto.js';
+import { unsubscribeUser } from './unsubscribe-user.js';
+import { detectMilestone } from '../../shared/conditions.js';
 
 export async function onMatchFinished(matchId: number): Promise<void> {
   if (!hasKakaoConfig() && !hasPushConfig()) return;
@@ -113,12 +115,40 @@ export async function onMatchFinished(matchId: number): Promise<void> {
     }
   }
 
-  if (successCount > 0) {
+  const milestone = detectMilestone(
+    status.metCount,
+    status.finishedCount,
+    status.matches.length,
+    status.requiredMetCount,
+  );
+
+  if (milestone || successCount > 0) {
     setAppMeta(LAST_NOTIFICATION_HASH_KEY, hash);
+  }
+
+  if (successCount > 0) {
     console.log(
       `[notifier] sent ${successCount} notification(s) (users=${users.length}, push=${pushSubs.length})`,
     );
-  } else {
+  } else if (!milestone) {
     console.warn('[notifier] all sends failed — hash not updated');
+  }
+
+  if (!milestone || users.length === 0) return;
+
+  for (const user of users) {
+    try {
+      const removed = await unsubscribeUser(user);
+      if (removed) {
+        console.log(
+          `[notifier] auto-unsubscribed user ${user.id} after ${milestone}`,
+        );
+      }
+    } catch (err) {
+      console.error(
+        `[notifier] auto-unsubscribe failed for user ${user.id}:`,
+        err,
+      );
+    }
   }
 }

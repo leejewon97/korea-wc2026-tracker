@@ -3,7 +3,6 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { Hono } from 'hono';
 import {
   consumeOAuthState,
-  deleteUser,
   getUserById,
   saveOAuthState,
   upsertUser,
@@ -13,8 +12,8 @@ import {
   exchangeCode,
   getKakaoUserId,
   hasKakaoConfig,
-  unlinkWithRefreshToken,
 } from '../services/kakao.js';
+import { unsubscribeUser } from '../services/unsubscribe-user.js';
 import {
   createOAuthState,
   createSessionToken,
@@ -191,13 +190,7 @@ authRoutes.delete('/auth/unsubscribe', async (c) => {
 
   const user = getUserById(session.userId);
   if (user) {
-    try {
-      const refreshToken = decryptToken(user.refresh_token_enc);
-      await unlinkWithRefreshToken(refreshToken);
-    } catch (err) {
-      console.warn('[auth] Kakao unlink failed (continuing local delete):', err);
-    }
-    deleteUser(user.id);
+    await unsubscribeUser(user);
   }
 
   clearSessionCookie(c);
