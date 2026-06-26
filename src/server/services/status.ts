@@ -71,6 +71,7 @@ export function buildStatusResponse(): StatusResponse {
 
   return {
     updatedAt: new Date().toISOString(),
+    serverTime: new Date().toISOString(),
     requiredMetCount: required,
     metCount,
     finishedCount,

@@ -45,6 +45,8 @@ export const REQUIRED_MET_COUNT = 3;
 
 export interface StatusResponse {
   updatedAt: string;
+  /** Railway 컨테이너(Linux) 시스템 시각 (UTC ISO) */
+  serverTime: string;
   requiredMetCount: number;
   metCount: number;
   finishedCount: number;

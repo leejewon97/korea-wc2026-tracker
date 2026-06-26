@@ -16,6 +16,7 @@ export interface MatchRow {
   poll_attempts: number;
   poll_failed: number;
   last_poll_at: string | null;
+  kickoff_notified: number;
 }
 
 export interface UserRow {
@@ -65,7 +66,8 @@ function initSchema(database: DatabaseSync): void {
       polling_started_at TEXT,
       poll_attempts INTEGER NOT NULL DEFAULT 0,
       poll_failed INTEGER NOT NULL DEFAULT 0,
-      last_poll_at TEXT
+      last_poll_at TEXT,
+      kickoff_notified INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS app_meta (
@@ -117,6 +119,7 @@ function migrateSchema(database: DatabaseSync): void {
     'poll_attempts INTEGER NOT NULL DEFAULT 0',
     'poll_failed INTEGER NOT NULL DEFAULT 0',
     'last_poll_at TEXT',
+    'kickoff_notified INTEGER NOT NULL DEFAULT 0',
   ];
   for (const col of columns) {
     try {
@@ -245,8 +248,27 @@ export function resetMatchState(matchId: number): boolean {
         poll_failed = 0,
         poll_attempts = 0,
         polling_started_at = NULL,
-        last_poll_at = NULL
+        last_poll_at = NULL,
+        kickoff_notified = 0
       WHERE match_id = ?`,
+    )
+    .run(matchId);
+  return result.changes > 0;
+}
+
+const FINISHED_STATUSES: MatchStatus[] = ['FT', 'AET', 'PEN', 'MANUAL'];
+
+export function isMatchFinishedStatus(status: MatchStatus): boolean {
+  return FINISHED_STATUSES.includes(status);
+}
+
+export function tryClaimKickoffNotification(matchId: number): boolean {
+  const result = getDb()
+    .prepare(
+      `UPDATE match_states SET kickoff_notified = 1
+       WHERE match_id = ?
+         AND kickoff_notified = 0
+         AND status NOT IN ('FT', 'AET', 'PEN', 'MANUAL')`,
     )
     .run(matchId);
   return result.changes > 0;

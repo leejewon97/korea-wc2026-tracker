@@ -9,9 +9,12 @@ import { getAllMatchStates, getDb } from './db/index.js';
 import { seedMatches } from './db/seed.js';
 import { adminRoutes } from './routes/admin.js';
 import { authRoutes } from './routes/auth.js';
+import { publicConfigRoutes } from './routes/public-config.js';
 import { pushRoutes } from './routes/push.js';
 import { statusRoutes } from './routes/status.js';
+import { createHtmlHandler } from './serve-html.js';
 import { startScheduler } from './services/match-poller.js';
+import { startKickoffScheduler } from './services/kickoff-scheduler.js';
 import { resolveFixtures } from './services/resolve-fixtures.js';
 
 loadEnvFile();
@@ -30,16 +33,17 @@ api.route('/', statusRoutes);
 api.route('/', adminRoutes);
 api.route('/', authRoutes);
 api.route('/', pushRoutes);
+api.route('/', publicConfigRoutes);
 app.route('/api', api);
 
 app.get('/health', (c) => c.json({ ok: true }));
 
 const publicDir = resolve(process.cwd(), 'dist/public');
 if (existsSync(publicDir)) {
-  app.use('/*', serveStatic({ root: publicDir }));
-  app.get('/', serveStatic({ path: 'index.html', root: publicDir }));
-  app.get('/go', serveStatic({ path: 'go.html', root: publicDir }));
+  app.get('/', createHtmlHandler(publicDir, 'index.html'));
+  app.get('/go', createHtmlHandler(publicDir, 'go.html'));
   app.get('/admin', serveStatic({ path: 'admin.html', root: publicDir }));
+  app.use('/*', serveStatic({ root: publicDir }));
 }
 
 const port = Number(process.env.PORT ?? 3000);
@@ -51,6 +55,7 @@ async function bootstrap(): Promise<void> {
   }
 
   await resolveFixtures();
+  startKickoffScheduler();
   startScheduler();
 
   console.log(`Server listening on http://localhost:${port}`);

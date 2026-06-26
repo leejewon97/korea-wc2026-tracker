@@ -12,6 +12,10 @@
         <p class="eyebrow">관리자</p>
         <h1>수동 스코어 입력</h1>
         <p class="subtitle">API 조회 실패 시 스코어를 직접 입력합니다. 저장할 때마다 비밀번호가 필요합니다.</p>
+        <div class="admin-server-clock" aria-live="polite">
+          <p class="admin-server-clock-label">서버 현재 시각 (Railway / KST)</p>
+          <p class="admin-server-clock-time" id="server-clock">불러오는 중…</p>
+        </div>
       </header>
 
       <form class="admin-form" id="admin-form">
@@ -36,6 +40,18 @@
         <button type="submit" class="btn-admin">저장</button>
         <p class="form-message" id="form-message" aria-live="polite"></p>
       </form>
+
+      <section class="admin-test" aria-labelledby="admin-test-heading">
+        <h2 id="admin-test-heading">알림 테스트</h2>
+        <p class="subtitle">
+          6경기(J조) 종료·탈락 확정(2/3) 템플릿을 <strong>현재 로그인한 본인</strong>에게만 보냅니다.
+          DB·해시·자동 구독 해지는 건너뜁니다. 메인에서 카카오 구독(및 Push 등록) 후 같은 브라우저에서 시도하세요.
+        </p>
+        <button type="button" class="btn-admin btn-admin-secondary" id="test-send-btn">
+          테스트 발송 (카카오 + Push)
+        </button>
+        <p class="form-message" id="test-message" aria-live="polite"></p>
+      </section>
 
       <footer class="footer">
         <a href="/">대시보드로 돌아가기</a>

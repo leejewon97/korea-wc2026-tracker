@@ -1,5 +1,6 @@
 import type { StatusResponse } from '../shared/types';
 import { detectMilestone } from '../shared/conditions';
+import { initKakaoShare } from './share';
 import {
   canUsePush,
   getPushEnvKind,
@@ -413,5 +414,6 @@ async function initAuth(): Promise<void> {
 }
 
 void initAuth();
+initKakaoShare();
 loadStatus();
 setInterval(loadStatus, 60_000);

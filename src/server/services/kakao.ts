@@ -27,6 +27,13 @@ export function hasKakaoConfig(): boolean {
   return Boolean(process.env.KAKAO_REST_API_KEY);
 }
 
+/** Kakao JS SDK (공유하기). 미설정 시 REST API 키로 시도. */
+export function getKakaoJavaScriptKey(): string | undefined {
+  const jsKey = process.env.KAKAO_JAVASCRIPT_KEY?.trim();
+  if (jsKey) return jsKey;
+  return process.env.KAKAO_REST_API_KEY?.trim() || undefined;
+}
+
 export function getRedirectUri(): string {
   return `${getBaseUrl()}/api/auth/kakao/callback`;
 }
