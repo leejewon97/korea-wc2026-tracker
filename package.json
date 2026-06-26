@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "tsx watch src/server/index.ts",
@@ -13,7 +16,9 @@
     "start": "node dist/server/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:seed": "tsx src/server/db/seed.ts"
+    "db:seed": "tsx src/server/db/seed.ts",
+    "setup:env": "tsx scripts/setup-env.ts",
+    "verify:fixtures": "tsx scripts/verify-fixtures.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.4",

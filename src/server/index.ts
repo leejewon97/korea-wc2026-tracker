@@ -1,3 +1,4 @@
+import { loadEnvFile } from './load-env.js';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
@@ -10,6 +11,8 @@ import { adminRoutes } from './routes/admin.js';
 import { statusRoutes } from './routes/status.js';
 import { startScheduler } from './services/match-poller.js';
 import { resolveFixtures } from './services/resolve-fixtures.js';
+
+loadEnvFile();
 
 const app = new Hono();
 
