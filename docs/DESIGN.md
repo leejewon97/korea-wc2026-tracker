@@ -97,7 +97,7 @@ Web Push 불가 구독자     → 메모 + 웹 대시보드만
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
-│  웹 클라이언트 │────▶│  API 서버     │────▶│  API-Football   │
+│  웹 클라이언트 │────▶│  API 서버     │────▶│  KickoffAPI     │
 │  (구독/대시보드)│     │  (판정·발송)  │     │  (§8.3 종료 후  │
 │               │     │              │     │   폴링)         │
 └─────────────┘     └──────┬───────┘     └─────────────────┘
@@ -298,15 +298,15 @@ Web Push 불가 구독자     → 메모 + 웹 대시보드만
 
 | 항목 | 내용 |
 |------|------|
-| 제공자 | **API-Football** (API-SPORTS) |
-| Base URL | `https://v3.football.api-sports.io/` |
-| 인증 | 헤더 `x-apisports-key` |
+| 제공자 | **KickoffAPI** |
+| Base URL | `https://api.kickoffapi.com/api/v1` |
+| 인증 | 헤더 `x-api-key` |
 | 대회 | `league=1`, `season=2026` (FIFA World Cup) |
 | 사용 엔드포인트 | `GET /fixtures?id={api_fixture_id}` |
 
-한 번의 요청 응답에 **최종 스코어**(`goals.home` / `goals.away`)와 **경기 상태**(`fixture.status.short`)가 함께 포함된다. 점수 조회와 종료 여부 확인을 **별도 API로 나누지 않는다**.
+응답은 플랫 JSON (`id`, `statusShort`, `goalsHome`/`goalsAway`, `homeTeam`/`awayTeam`). 날짜 조회 시 KickoffAPI는 UTC 기준이므로 KST·UTC 양쪽 날짜를 조회한다 (`kickoffToApiQueryDates`).
 
-> **요청 할당:** HTTP 요청 1회 = 일일 쿼터 1회. `ids`로 여러 경기를 한 번에 조회해도 1회로 계산된다.
+한 번의 요청 응답에 **최종 스코어**와 **경기 상태**(`statusShort`)가 함께 포함된다.
 
 #### 8.3.2 설계 원칙
 
@@ -322,7 +322,7 @@ Web Push 불가 구독자     → 메모 + 웹 대시보드만
 | 첫 API 조회 | `kickoff_kst + 110분` |
 | 조회 간격 | **1분** |
 | 최대 조회 횟수 | **30회** (`kickoff + 140분`까지) |
-| 중단 조건 | `status.short` ∈ `{ FT, AET, PEN }` 이고 `goals`가 null이 아닐 때 **즉시 중단** |
+| 중단 조건 | `statusShort` ∈ `{ FT, AET, PEN }` 이고 골이 null이 아닐 때 **즉시 중단** |
 | 진행 중 | `1H`, `2H`, `HT`, `ET` 등 → 다음 1분 후 재조회 |
 | 상한 초과 | 30회 후에도 미종료 → 수동 입력 폴백·운영 알림 (§11) |
 
@@ -331,23 +331,23 @@ kickoff = §1.3 KST
 poll_at = kickoff + 110min
 
 repeat 최대 30회 (또는 FT 확인 시 break):
-  GET /fixtures?id={api_fixture_id}
+  GET /api/v1/fixtures?id={api_fixture_id}
   if FT/AET/PEN and goals 확정:
     → MatchState 갱신 → §8.1 판정 → §8.2 알림 (스코어 포함)
     break
   poll_at += 1min
 ```
 
-#### 8.3.4 무료 플랜 적합성
+#### 8.3.4 일일 한도 적합성
 
-API-Football 무료 플랜: **100 req/일**, **10 req/분**.
+KickoffAPI 플랜 한도 내 운영 (검증 기준 일 **~100,000 req**).
 
 | 시나리오 | 일일 요청 (경기 3개/일) |
 |----------|-------------------------|
-| 최악 (경기당 30회 × 3) | 90회 |
-| 현실적 (`FT` 확인 후 중단) | 약 10~25회 |
+| 최악 (경기당 30회 × 3 + 기동 6) | ~96회 |
+| 현실적 (`FT` 확인 후 중단) | ~10~15회 |
 
-6경기·2일 운영 시 무료 플랜으로 충분하다. 응답 헤더 `x-ratelimit-requests-remaining`을 확인해 잔량이 부족하면 폴백을 준비한다.
+6경기·2일 운영 시 한도 대비 여유가 충분하다.
 
 #### 8.3.5 폴백
 
@@ -374,7 +374,7 @@ API-Football 무료 플랜: **100 req/일**, **10 req/분**.
 | 필드 | 설명 |
 |------|------|
 | match_id | 1~6 조건 매핑 |
-| api_fixture_id | API-Football fixture ID |
+| api_fixture_id | KickoffAPI fixture ID |
 | kickoff_kst | §1.3 킥오프 시각 |
 | home_score, away_score | nullable (경기 전) |
 | condition_met | boolean |
@@ -414,7 +414,7 @@ API-Football 무료 플랜: **100 req/일**, **10 req/분**.
 - [ ] Web Push 구독·발송
 - [ ] `/go` 브릿지 페이지
 - [ ] 환경 감지 + 사용자 가이드 UI
-- [ ] API-Football 연동 (§8.3: 킥오프+110분부터 1분 간격·최대 30회, FT 시 중단)
+- [x] KickoffAPI 연동 (§8.3: 킥오프+110분부터 1분 간격·최대 30회, FT 시 중단)
 - [ ] 경기 종료 즉시 스코어 포함 알림 (카카오 메모 + Web Push)
 - [ ] 수동 스코어 입력 폴백
 - [ ] 6조건 판정 로직
@@ -451,6 +451,5 @@ API-Football 무료 플랜: **100 req/일**, **10 req/분**.
 - [카카오 데브톡 — 나에게 보내기 알림 불가](https://devtalk.kakao.com/t/api/145613)
 - [Web Push API (MDN)](https://developer.mozilla.org/ko/docs/Web/API/Push_API)
 - [FIFA World Cup 2026 일정](https://www.fifa.com/ko/tournaments/mens/worldcup/canadamexicousa2026/scores-fixtures)
-- [API-Football 문서](https://www.api-football.com/documentation-v3)
-- [API-Football WC 2026 가이드](https://www.api-football.com/news/post/fifa-world-cup-2026-guide-to-using-data-with-api-sports)
-- [API-Football 요금](https://www.api-football.com/pricing)
+- [KickoffAPI 문서](https://docs.kickoffapi.com/)
+- [KickoffAPI WC 2026](https://kickoffapi.com/world-cup-2026-api.html)

@@ -49,6 +49,7 @@ export function buildStatusResponse(): StatusResponse {
 
     return {
       ...match,
+      apiFixtureId: state?.api_fixture_id ?? match.apiFixtureId ?? null,
       homeScore,
       awayScore,
       conditionMet,

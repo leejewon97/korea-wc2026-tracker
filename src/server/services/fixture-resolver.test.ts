@@ -3,6 +3,7 @@ import type { FixtureData } from '../../shared/types.js';
 import {
   findFixtureForMatch,
   kickoffToApiDate,
+  kickoffToApiQueryDates,
   teamsMatch,
   verifyFixtureTeams,
 } from './fixture-resolver.js';
@@ -76,5 +77,14 @@ describe('findFixtureForMatch', () => {
 describe('kickoffToApiDate', () => {
   it('returns KST calendar date', () => {
     expect(kickoffToApiDate('2026-06-27T04:00:00+09:00')).toBe('2026-06-27');
+  });
+});
+
+describe('kickoffToApiQueryDates', () => {
+  it('includes UTC date when KST calendar day differs', () => {
+    expect(kickoffToApiQueryDates('2026-06-27T04:00:00+09:00')).toEqual([
+      '2026-06-27',
+      '2026-06-26',
+    ]);
   });
 });

@@ -9,7 +9,7 @@ import {
   isFinishedStatusShort,
   isGoalsConfirmed,
   mapApiStatusToMatchStatus,
-} from './football-api.js';
+} from './kickoff-api.js';
 import { onMatchFinished } from './notifier.js';
 
 export function loadMatchesConfig(): MatchesFileConfig {
@@ -213,7 +213,7 @@ export function startMatchPolling(matchId: number, kickoffKst: string): void {
 
 export function startScheduler(): void {
   if (!hasApiKey()) {
-    console.warn('[scheduler] API_FOOTBALL_KEY not set — polling disabled');
+    console.warn('[scheduler] KICKOFF_API_KEY not set — polling disabled');
     return;
   }
 

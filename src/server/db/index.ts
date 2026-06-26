@@ -96,6 +96,10 @@ export function setAppMeta(key: string, value: string): void {
     .run({ key, value });
 }
 
+export function deleteAppMeta(key: string): void {
+  getDb().prepare('DELETE FROM app_meta WHERE key = ?').run(key);
+}
+
 export function getAppMeta(key: string): string | undefined {
   const row = getDb()
     .prepare('SELECT value FROM app_meta WHERE key = ?')

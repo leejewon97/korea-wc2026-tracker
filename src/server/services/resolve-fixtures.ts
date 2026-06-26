@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { MatchConfig, MatchesFileConfig } from '../../shared/types.js';
+import type { FixtureData } from '../../shared/types.js';
 import {
+  deleteAppMeta,
   getAllMatchStates,
   setAppMeta,
   upsertMatchState,
@@ -10,10 +12,10 @@ import {
   fetchFixture,
   fetchFixturesByDate,
   hasApiKey,
-} from './football-api.js';
+} from './kickoff-api.js';
 import {
   findFixtureForMatch,
-  kickoffToApiDate,
+  kickoffToApiQueryDates,
   verifyFixtureTeams,
 } from './fixture-resolver.js';
 
@@ -22,10 +24,15 @@ function loadConfig(): MatchesFileConfig {
   return JSON.parse(readFileSync(path, 'utf-8')) as MatchesFileConfig;
 }
 
+function clearFixtureMeta(matchId: number): void {
+  deleteAppMeta(`fixture_error_${matchId}`);
+  deleteAppMeta(`fixture_mismatch_${matchId}`);
+}
+
 export async function resolveFixtures(): Promise<void> {
   if (!hasApiKey()) {
     console.warn(
-      '[fixture-resolver] API_FOOTBALL_KEY not set — skipping fixture resolution',
+      '[fixture-resolver] KICKOFF_API_KEY not set — skipping fixture resolution',
     );
     return;
   }
@@ -84,21 +91,29 @@ async function verifyExistingFixture(
     apiFixtureId: fixtureId,
     kickoffKst: match.kickoffKst,
   });
+  clearFixtureMeta(match.id);
   console.log(
     `[fixture-resolver] match ${match.id} verified: fixture ${fixtureId} (${fixture.homeTeamName} vs ${fixture.awayTeamName})`,
   );
 }
 
 async function resolveFixtureFromDate(match: MatchConfig): Promise<void> {
-  const date = kickoffToApiDate(match.kickoffKst);
-  const fixtures = await fetchFixturesByDate(date);
-  const found = findFixtureForMatch(match, fixtures);
+  const dates = kickoffToApiQueryDates(match.kickoffKst);
+  const fixturesById = new Map<number, FixtureData>();
+
+  for (const date of dates) {
+    for (const fixture of await fetchFixturesByDate(date)) {
+      fixturesById.set(fixture.fixtureId, fixture);
+    }
+  }
+
+  const found = findFixtureForMatch(match, [...fixturesById.values()]);
 
   if (!found) {
     console.error(
-      `[fixture-resolver] match ${match.id}: no fixture on ${date} for ${match.homeTeam} vs ${match.awayTeam}`,
+      `[fixture-resolver] match ${match.id}: no fixture on ${dates.join('/')} for ${match.homeTeam} vs ${match.awayTeam}`,
     );
-    setAppMeta(`fixture_mismatch_${match.id}`, `not found on ${date}`);
+    setAppMeta(`fixture_mismatch_${match.id}`, `not found on ${dates.join('/')}`);
     return;
   }
 
@@ -107,6 +122,7 @@ async function resolveFixtureFromDate(match: MatchConfig): Promise<void> {
     apiFixtureId: found.fixtureId,
     kickoffKst: match.kickoffKst,
   });
+  clearFixtureMeta(match.id);
   console.log(
     `[fixture-resolver] match ${match.id} resolved: fixture ${found.fixtureId} (${found.homeTeamName} vs ${found.awayTeamName})`,
   );

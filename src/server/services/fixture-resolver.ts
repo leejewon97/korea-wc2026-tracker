@@ -78,3 +78,10 @@ export function kickoffToApiDate(kickoffKst: string): string {
   const d = parts.find((p) => p.type === 'day')!.value;
   return `${y}-${m}-${d}`;
 }
+
+/** KickoffAPI date filter uses UTC calendar days; include KST day when it differs. */
+export function kickoffToApiQueryDates(kickoffKst: string): string[] {
+  const kst = kickoffToApiDate(kickoffKst);
+  const utc = new Date(kickoffKst).toISOString().slice(0, 10);
+  return kst === utc ? [kst] : [kst, utc];
+}

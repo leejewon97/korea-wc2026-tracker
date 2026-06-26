@@ -1,14 +1,14 @@
 import { loadEnvFile } from '../src/server/load-env.js';
 import { closeDb, getAllMatchStates, getAppMeta, getDb } from '../src/server/db/index.js';
 import { seedMatches } from '../src/server/db/seed.js';
-import { hasApiKey } from '../src/server/services/football-api.js';
+import { hasApiKey } from '../src/server/services/kickoff-api.js';
 import { resolveFixtures } from '../src/server/services/resolve-fixtures.js';
 
 loadEnvFile();
 
 async function main(): Promise<void> {
   if (!hasApiKey()) {
-    console.error('API_FOOTBALL_KEY is not set in .env');
+    console.error('KICKOFF_API_KEY is not set in .env');
     process.exit(1);
   }
 

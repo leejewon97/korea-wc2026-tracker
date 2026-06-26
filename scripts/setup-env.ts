@@ -11,15 +11,10 @@ if (existsSync(envPath)) {
 }
 
 const template = readFileSync(examplePath, 'utf-8');
-const sessionSecret = randomBytes(32).toString('hex');
 const adminSecret = randomBytes(16).toString('hex');
-const tokenKey = randomBytes(16).toString('hex');
 
-const content = template
-  .replace('change-me-to-random-string', sessionSecret)
-  .replace('change-me-admin-secret', adminSecret)
-  .replace('0123456789abcdef0123456789abcdef', tokenKey);
+const content = template.replace('change-me-admin-secret', adminSecret);
 
 writeFileSync(envPath, content, 'utf-8');
-console.log('Created .env with random SESSION_SECRET, ADMIN_SECRET, TOKEN_ENCRYPTION_KEY.');
-console.log('Add your API_FOOTBALL_KEY to .env, then run: npm run verify:fixtures');
+console.log('Created .env with random ADMIN_SECRET.');
+console.log('Add KICKOFF_API_KEY to .env, then run: npm run verify:kickoff');
