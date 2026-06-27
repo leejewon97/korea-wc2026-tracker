@@ -8,6 +8,7 @@ import { resolve } from 'node:path';
 import { getAllMatchStates, getDb } from './db/index.js';
 import { seedMatches } from './db/seed.js';
 import { adminRoutes } from './routes/admin.js';
+import { analyticsRoutes } from './routes/analytics.js';
 import { authRoutes } from './routes/auth.js';
 import { publicConfigRoutes } from './routes/public-config.js';
 import { pushRoutes } from './routes/push.js';
@@ -31,6 +32,7 @@ app.use(
 const api = new Hono();
 api.route('/', statusRoutes);
 api.route('/', adminRoutes);
+api.route('/', analyticsRoutes);
 api.route('/', authRoutes);
 api.route('/', pushRoutes);
 api.route('/', publicConfigRoutes);

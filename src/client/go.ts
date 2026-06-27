@@ -1,3 +1,5 @@
+import { recordPageVisit } from './record-visit';
+
 const statusEl = document.getElementById('go-status')!;
 const openKakaoEl = document.getElementById('open-kakao') as HTMLAnchorElement;
 const openWebEl = document.getElementById('open-web') as HTMLAnchorElement;
@@ -22,3 +24,5 @@ if (met !== null && finished !== null) {
 
 openKakaoEl.href = 'kakaotalk://launch';
 openWebEl.href = '/';
+
+recordPageVisit();

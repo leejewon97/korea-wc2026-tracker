@@ -146,9 +146,11 @@ korea-wc2026-tracker/
 
 ---
 
-## 구독자 통계 (admin)
+## 구독자·방문자 통계 (admin)
 
 카카오 구독 시 `kakao_user_id` HMAC 해시만 `subscriber_fingerprints`에 누적됩니다. 해지·마일스톤 자동 해지 후에도 고유 구독자 수는 유지됩니다.
+
+메인(`/`)·브릿지(`/go`) 페이지 로드 시 익명 `wc_visitor` 쿠키 HMAC으로 `visitor_fingerprints`에 **고유 방문자**와 **페이지뷰**를 집계합니다. `/admin`은 제외됩니다.
 
 브라우저 주소창에서 (`ADMIN_SECRET`은 `.env` / Railway Variables 값):
 
@@ -161,10 +163,15 @@ https://korea-wc2026-tracker-production.up.railway.app/api/admin/stats?secret=YO
 응답 예:
 
 ```json
-{ "uniqueSubscribers": 42, "activeSubscribers": 30 }
+{
+  "uniqueSubscribers": 42,
+  "activeSubscribers": 30,
+  "uniqueVisitors": 1200,
+  "totalPageViews": 3400
+}
 ```
 
-신규 구독 시 Railway **Logs**에 `[stats] unique_subscribers=N`도 출력됩니다.
+신규 구독·신규 방문자 시 Railway **Logs**에 `[stats] unique_subscribers=N` / `[stats] unique_visitors=N ...`도 출력됩니다.
 
 ---
 

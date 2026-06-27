@@ -114,6 +114,13 @@ function initSchema(database: DatabaseSync): void {
       id_hash TEXT PRIMARY KEY,
       first_seen_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS visitor_fingerprints (
+      id_hash TEXT PRIMARY KEY,
+      first_seen_at TEXT NOT NULL,
+      last_seen_at TEXT NOT NULL,
+      page_views INTEGER NOT NULL DEFAULT 1
+    );
   `);
 
   migrateSchema(database);
@@ -458,6 +465,44 @@ export function getUniqueSubscriberCount(): number {
 export function getActiveSubscriberCount(): number {
   const row = getDb()
     .prepare('SELECT COUNT(*) AS n FROM users')
+    .get() as { n: number };
+  return row.n;
+}
+
+export function recordVisitorPageView(idHash: string): boolean {
+  const now = new Date().toISOString();
+  const database = getDb();
+  const insertResult = database
+    .prepare(
+      `INSERT OR IGNORE INTO visitor_fingerprints (id_hash, first_seen_at, last_seen_at, page_views)
+       VALUES (?, ?, ?, 1)`,
+    )
+    .run(idHash, now, now);
+
+  if (insertResult.changes > 0) {
+    return true;
+  }
+
+  database
+    .prepare(
+      `UPDATE visitor_fingerprints
+       SET last_seen_at = ?, page_views = page_views + 1
+       WHERE id_hash = ?`,
+    )
+    .run(now, idHash);
+  return false;
+}
+
+export function getUniqueVisitorCount(): number {
+  const row = getDb()
+    .prepare('SELECT COUNT(*) AS n FROM visitor_fingerprints')
+    .get() as { n: number };
+  return row.n;
+}
+
+export function getTotalPageViewCount(): number {
+  const row = getDb()
+    .prepare('SELECT COALESCE(SUM(page_views), 0) AS n FROM visitor_fingerprints')
     .get() as { n: number };
   return row.n;
 }

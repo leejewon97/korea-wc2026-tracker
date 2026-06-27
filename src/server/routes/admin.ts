@@ -3,7 +3,7 @@ import { getCookie } from 'hono/cookie';
 import { evaluateCondition } from '../../shared/conditions.js';
 import type { MatchStatus } from '../../shared/types.js';
 import { getMatchState, getUserById, resetMatchState, upsertMatchState } from '../db/index.js';
-import { getSubscriberStats } from '../services/subscriber-fingerprint.js';
+import { getAdminStats } from '../services/visitor-analytics.js';
 import { onMatchFinished } from '../services/notifier.js';
 import { parseSessionToken, SESSION_COOKIE } from '../services/session.js';
 import { sendTestNotificationToUser } from '../services/test-notification.js';
@@ -32,7 +32,7 @@ adminRoutes.get('/admin/stats', (c) => {
     return c.json({ error: authError }, 503);
   }
 
-  return c.json(getSubscriberStats());
+  return c.json(getAdminStats());
 });
 
 adminRoutes.post('/admin/score', async (c) => {
