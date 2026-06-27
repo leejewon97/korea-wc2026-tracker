@@ -412,6 +412,10 @@ body {
   color: var(--warn);
 }
 
+.result-pill.live {
+  color: #38bdf8;
+}
+
 .result-pill.poll-failed {
   color: var(--warn);
 }

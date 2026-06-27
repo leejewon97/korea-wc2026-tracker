@@ -371,6 +371,9 @@ function renderMatches(data: StatusResponse): void {
         cardClass = 'poll-failed';
         resultClass = 'poll-failed';
         resultText = '조회 실패';
+      } else if (match.status === 'LIVE') {
+        resultClass = 'live';
+        resultText = '경기 중';
       } else if (finished && match.conditionMet === true) {
         cardClass = 'met';
         resultClass = 'met';
