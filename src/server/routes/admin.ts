@@ -119,6 +119,38 @@ adminRoutes.post('/admin/reset', async (c) => {
   return c.json({ ok: true, matchId });
 });
 
+adminRoutes.post('/admin/live', async (c) => {
+  const body = await c.req.json<{ matchId: number; secret: string }>();
+  const authError = verifyAdminSecret(body.secret);
+  if (authError === 'Unauthorized') {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  if (authError) {
+    return c.json({ error: authError }, 503);
+  }
+
+  const matchId = Number(body.matchId);
+  if (!Number.isInteger(matchId) || matchId < 1 || matchId > 6) {
+    return c.json({ error: 'Invalid input' }, 400);
+  }
+
+  const existing = getMatchState(matchId);
+  if (!existing) {
+    return c.json({ error: 'Match not found' }, 404);
+  }
+
+  if (['FT', 'AET', 'PEN', 'MANUAL'].includes(existing.status)) {
+    return c.json({ error: 'Match already finished' }, 400);
+  }
+
+  if (existing.status === 'LIVE') {
+    return c.json({ ok: true, matchId, status: 'LIVE', unchanged: true });
+  }
+
+  upsertMatchState({ matchId, status: 'LIVE' });
+  return c.json({ ok: true, matchId, status: 'LIVE' });
+});
+
 adminRoutes.post('/admin/test-send', async (c) => {
   const body = await c.req.json<{ secret: string }>();
   const authError = verifyAdminSecret(body.secret);
