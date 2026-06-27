@@ -18,6 +18,7 @@ vi.mock('./notifier.js', () => ({
 import {
   closeDb,
   getDb,
+  getMatchState,
   tryClaimKickoffNotification,
   upsertMatchState,
 } from '../db/index.js';
@@ -111,6 +112,13 @@ describe('scheduleKickoffForMatch', () => {
     const now = new Date(KICKOFF).getTime() + 1000;
     scheduleKickoffForMatch(1, KICKOFF, now);
     await vi.waitFor(() => expect(onMatchKickoff).toHaveBeenCalledWith(1));
+    expect(getMatchState(1)?.status).toBe('LIVE');
+  });
+
+  it('sets status to LIVE when kickoff is claimed', () => {
+    expect(tryClaimKickoffNotification(1)).toBe(true);
+    expect(getMatchState(1)?.status).toBe('LIVE');
+    expect(getMatchState(1)?.kickoff_notified).toBe(1);
   });
 
   it('skips when already notified', () => {

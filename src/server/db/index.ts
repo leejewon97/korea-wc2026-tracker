@@ -277,7 +277,7 @@ export function isMatchFinishedStatus(status: MatchStatus): boolean {
 export function tryClaimKickoffNotification(matchId: number): boolean {
   const result = getDb()
     .prepare(
-      `UPDATE match_states SET kickoff_notified = 1
+      `UPDATE match_states SET kickoff_notified = 1, status = 'LIVE'
        WHERE match_id = ?
          AND kickoff_notified = 0
          AND status NOT IN ('FT', 'AET', 'PEN', 'MANUAL')`,
